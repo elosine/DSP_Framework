@@ -304,7 +304,6 @@ q[\addsynthdefargsSpec].value(\audioin_mono, \amp, 0.0, 1.0, \lin);
 // Add
 // Add impulse signal
 // Prototype in Processing
-// git test
 
 a = NetAddr("localhost", 57120);
 a.sendMsg("/mkaudioin", "mic1", 0);
