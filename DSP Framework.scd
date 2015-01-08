@@ -24,9 +24,7 @@ q[\addsyndef] = {
 	syndefname = syndefname.asSymbol;
 	get = SynthDesc.read(SynthDef.synthDefDir ++ syndefname++".scsyndef");
 	ctlnames = get.[syndefname.asSymbol].controlNames;
-	ctlnames.do{|it, ix|
-		q[\synthdefs][syndefname][1][it] = Array.newClear(3);
-	};
+	ctlnames.do{ |it, ix| q[\synthdefs][syndefname][1][it] = Array.newClear(3) }
 };
 
 //Function: to add spec to args
@@ -92,8 +90,9 @@ q[\synthdefs][\audioin_mono] = [
 		rms = Amplitude.kr(in).ampdb.linlin(-40.0, 0.0, 0.0, 1.0);
 		Out.kr(kbs, rms); //send rms amplitude measure to a control bus
 		Out.ar(obs, in)
-	}).add,
-	() //Empty Dictionary to contain any Arg Specs
+	}).load,
+	(), //Empty Dictionary to contain any Arg Specs
+	() //Empty Dictionary for presets
 ];
 
 //run function to add control names
@@ -119,8 +118,9 @@ q[\synthdefs][\audioOut_mono] = [
 		rms = Amplitude.kr(in).ampdb.linlin(-40.0, 0.0, 0.0, 1.0);
 		Out.kr(kbs, rms); //send rms amplitude measure to a control bus
 		Out.ar(obs, in)
-	}).add,
-	() //Empty Dictionary to contain any Arg Specs
+	}).load,
+	(), //Empty Dictionary to contain any Arg Specs
+	() //Empty Dictionary for presets
 ];
 
 //run function to add control names
@@ -146,8 +146,9 @@ q[\synthdefs][\audioOut_stereo] = [
 		rms = Amplitude.kr(in).ampdb.linlin(-40.0, 0.0, 0.0, 1.0);
 		Out.kr(kbs, rms); //send rms amplitude measure to a control bus
 		Out.ar(obs, in)
-	}).add,
-	() //Empty Dictionary to contain any Arg Specs
+	}).load,
+	(), //Empty Dictionary to contain any Arg Specs
+	() //Empty Dictionary for presets
 ];
 
 //run function to add control names
@@ -164,24 +165,76 @@ q[\addsynthdefargsSpec].value(\audioOut_stereo, \amp, 0.0, 1.0, \lin);
  ////                              /////
 ///////////////////////////////////////
 
-//SynthDefs to handle Sound-Out to soundcard
 q[\synthdefs][\sineWlfo] = [
 	SynthDef(\sineWlfo, {
-		arg obs, rate, freqlo=100, freqhi=400, amp=1;
+		arg obs, rate=0, freqlo=300, freqhi=300, amp=1;
 		var sig, lfo;
 		lfo = SinOsc.kr(rate).range(freqlo, freqhi);
 		sig = SinOsc.ar(lfo);
 		Out.ar(obs, sig*amp);
-	}).add,
-	() //Empty Dictionary to contain any Arg Specs
+	}).load,
+	(), //Empty Dictionary to contain any Arg Specs
+	//Dictionary of presets that I enter manually, for clarity and persistance:
+	//Each preset entry is another dictionary containing all arg names
+	// as keys with arg value as data
+	(
+		\default: (
+			rate:0,
+			freqlo:300.0,
+			freqhi:300.0,
+			amp:1
+		)
+	)
 ];
 
 //run function to add control names
 q[\addsyndef].value(\sineWlfo);
 //Run function(s) to add any specs to arguments
 q[\addsynthdefargsSpec].value(\sineWlfo, \amp, 0.0, 1.0, \lin);
+q[\addsynthdefargsSpec].value(\sineWlfo, \rate, 0.0, 100.0, \lin);
 q[\addsynthdefargsSpec].value(\sineWlfo, \freqlo, 20.0, 20000.0, \exp);
 q[\addsynthdefargsSpec].value(\sineWlfo, \freqhi, 20.0, 20000.0, \exp);
+
+ /////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////
+
+ /////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////
+
+    ///////////////////////////////////////
+   ////                              /////
+  ////         \noiseBurst          /////
+ ////                              /////
+///////////////////////////////////////
+
+q[\synthdefs][\noiseBurst] = [
+	SynthDef(\noiseBurst, {
+		arg obs, rate=1.0, atk=0.03, decay=0.75, amp=1;
+		var sig;
+		sig = PinkNoise.ar(0.5) * Decay2.ar( Impulse.ar(rate), atk, decay );
+		Out.ar(obs, sig*amp);
+	}).load,
+	(), //Empty Dictionary to contain any Arg Specs
+	//Dictionary of presets that I enter manually, for clarity and persistance:
+	//Each preset entry is another dictionary containing all arg names
+	// as keys with arg value as data
+	(
+		\default: (
+			rate:1.0,
+			atk:0.03,
+			decay:0.75,
+			amp:1
+		)
+	)
+];
+
+//run function to add control names
+q[\addsyndef].value(\noiseBurst);
+//Run function(s) to add any specs to arguments
+q[\addsynthdefargsSpec].value(\noiseBurst, \amp, 0.0, 1.0, \lin);
+q[\addsynthdefargsSpec].value(\noiseBurst, \rate, 0.05, 99.0, \lin);
+q[\addsynthdefargsSpec].value(\noiseBurst, \atk, 0.0001, 5.0, \lin);
+q[\addsynthdefargsSpec].value(\noiseBurst, \decay, 0.05, 13.0, \lin);
 
  /////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////
@@ -201,8 +254,9 @@ q[\synthdefs][\ringmod] = [
 		rms = Amplitude.kr(rm).ampdb.linlin(-40.0, 0.0, 0.0, 1.0);
 		Out.kr(kbs, rms); //send rms amplitude measure to a control bus
 		Out.ar(obs, rm*amp);
-	}).add,
-	() //Empty Dictionary to contain any Arg Specs
+	}).load,
+	(), //Empty Dictionary to contain any Arg Specs
+	() //Empty Dictionary to contain arg presets
 ];
 
 //run function to add control names
@@ -339,15 +393,40 @@ q[\synthdefs][\petalsOfResonance] = [
 		Out.ar(obs, ltdOutput*masteramp);
 
 		}, [0.069]
-	).add,
+	).load,
 
-	()
-
+	(),
+	//Dictionary of presets that I enter manually, for clarity and persistance:
+	//Each preset entry is another dictionary containing all arg names
+	// as keys with arg value as data
+	(
+		\default: (
+			masteramp:0.5,
+			inamp:1.0,
+			fund:200,
+			firstPartial:2,
+			bank2MidiOffset:0.25,
+			spread:0.33,
+			ringL1:7.75,
+			ringL2:9.5,
+			inputLen:1,
+			trig:0
+		)
+	)
 ];
 
 q[\addsyndef].value(\petalsOfResonance);
 
-q[\addsynthdefargsSpec].value(\petalsOfResonance, \amp, 0.0, 1.0, \lin);
+q[\addsynthdefargsSpec].value(\petalsOfResonance, \masteramp, 0.0, 1.0, \lin);
+q[\addsynthdefargsSpec].value(\petalsOfResonance, \inamp, 0.0, 7.0, \lin);
+q[\addsynthdefargsSpec].value(\petalsOfResonance, \fund, 20.0, 20000.0, \exp);
+q[\addsynthdefargsSpec].value(\petalsOfResonance, \firstPartial, 1.0, 99.0, \lin); //first partial to make a filter, eg. if fund is 50 and firstPartial is 5, the filters will be at 250, 300, 350, etc.
+q[\addsynthdefargsSpec].value(\petalsOfResonance, \bank2MidiOffset, -36.0, 36.0, \lin); //tuning offset for second bank of resonators in midi note values
+q[\addsynthdefargsSpec].value(\petalsOfResonance, \spread, 0.0, 3.0, \lin); //?
+q[\addsynthdefargsSpec].value(\petalsOfResonance, \ringL1, 0.0, 60.0, \lin); //lower end of ring range in seconds. synthdef will choose randomly between ringL1 and ringL2
+q[\addsynthdefargsSpec].value(\petalsOfResonance, \ringL2, 0.0, 60.0, \lin); //higher end of ring range in seconds.
+q[\addsynthdefargsSpec].value(\petalsOfResonance, \inputLen, 0.0, 60.0, \lin); // controls duration of envelope on input
+q[\addsynthdefargsSpec].value(\petalsOfResonance, \trig, 0.0, 1.0, \lin); //trigger for input envelope
 
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
@@ -507,19 +586,20 @@ q[\setrmdef] = OSCdef(\setrm, {|msg|
 
 )
 
-a.set(\fund, 35, \firstPartial, 5, \bank2MidiOffset, 8.1, \masteramp, 1.5, \spread, 1.33, \ringL1, 7.0, \ringL2, 15);
-a = Synth(\petalsOfResonance, [\fund, 111, \firstPartial, 7, \masterAmp, 1, \spread, 8.5, \bankTwoOffset, 10]);
-a.set(\fund, 111, \firstPartial, 7, \masterAmp, 1);
-a.free;
-
-s.meter
+//PERSISTANCE
+Archive.global.put(\DSPframework, q);
 
 //NEXT:
 
-// Add impulse signal based on the pink noise tester in petals
-// Way to store and recall synthdef specific arg presets
-// Make a step-by-step osc msg protocol and what it does
+// Sig adder & DSP adder
+// Way to store and recall synthdef specific arg presets with persistance
+// Make a step-by-step osc msg protocol and what it does:
+//// sig - dsp - out
+//// live in - dsp - out
 // Prototype in Processing
+// Fix/Tighten Up any Issues
+// Test with presets and make new ones
+// Auto-Gui in Processing???
 
 
 a = NetAddr("localhost", 57120);
@@ -616,7 +696,6 @@ q[\mkaudioindef]
 //3) Create a control bus to send the amplitude measurement/metering to in slot [1]
 //4) Create a audio-in synth in slot [2]
 
-
 q[\mkaudioOutdef_m]
 //OSCdef to make an mono audio out - \mkaudioOutdef_m
 "/mkaudioOut_m"
@@ -641,6 +720,19 @@ q[\routeoutdef]
 //msg[1] = name of in conglermate to send out
 //msg[2] = name of out conglermate
 //msg[3] = out channel number
+
+q[\insgrp] = Group.new(s);
+q[\dspgrp1] = Group.after(q[\insgrp]);
+q[\dspgrp2] = Group.after(q[\insgrp]);
+q[\dspgrp3] = Group.after(q[\insgrp]);
+q[\dspgrp4] = Group.after(q[\insgrp]);
+q[\dspgrp5] = Group.after(q[\insgrp]);
+q[\dspgrp6] = Group.after(q[\insgrp]);
+q[\dspgrp7] = Group.after(q[\insgrp]);
+q[\dspgrp8] = Group.after(q[\insgrp]);
+q[\dspgrp9] = Group.after(q[\insgrp]);
+q[\dspgrp10] = Group.after(q[\insgrp]);
+q[\outsgrp] = Group.after(q[\dspgrp]);
 
 
 SYNTHDEFS:
