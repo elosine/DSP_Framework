@@ -436,40 +436,43 @@ q[\addsynthdefargsSpec].value(\petalsOfResonance, \trig, 0.0, 1.0, \lin); //trig
 )
 
 //Create 3 Groups: ins from soundcard, DSP,  and outs to soundcard
-q[\insgrp] = Group.new(s);
-q[\dspgrp1] = Group.after(q[\insgrp]);
-q[\dspgrp2] = Group.after(q[\insgrp]);
-q[\dspgrp3] = Group.after(q[\insgrp]);
-q[\dspgrp4] = Group.after(q[\insgrp]);
-q[\dspgrp5] = Group.after(q[\insgrp]);
-q[\dspgrp6] = Group.after(q[\insgrp]);
-q[\dspgrp7] = Group.after(q[\insgrp]);
-q[\dspgrp8] = Group.after(q[\insgrp]);
-q[\dspgrp9] = Group.after(q[\insgrp]);
-q[\dspgrp10] = Group.after(q[\insgrp]);
-q[\outsgrp] = Group.after(q[\dspgrp]);
+q[\g0] = Group.new(s);
+q[\g1] = Group.after(q[\insgrp]);
+q[\g2] = Group.after(q[\insgrp]);
+q[\g3] = Group.after(q[\insgrp]);
+q[\g4] = Group.after(q[\insgrp]);
+q[\g5] = Group.after(q[\insgrp]);
+q[\g6] = Group.after(q[\insgrp]);
+q[\g7] = Group.after(q[\insgrp]);
+q[\g8] = Group.after(q[\insgrp]);
+q[\g9] = Group.after(q[\insgrp]);
+q[\g10] = Group.after(q[\insgrp]);
+q[\g99] = Group.after(q[\dspgrp]);
 
 
 /////////////////////////////////////////////////////////
 ////  AUDIO IN //////////////////////////////////////////
 /////////////////////////////////////////////////////////
-
 //OSCdef: \mkaudioindef
+//SynthMaking Template [msg]: 1=name, 2=group/slot, 3+(optional args); Dictionary: 0=ibs, 1=obs, 2=kbs, 3=group/slot, 4=synth
 //msg[1]= Dictonary name for Sound-In conglomerate
-//msg[2] = Sound in Channel
+//msg[3] = Sound in Channel
 //1) Adds an array to dictionary under the name in msg[1]
 //2) Create a private audio bus to send the audio in to in slot [0]
 //3) Create a control bus to send the amplitude measurement/metering to in slot [1]
 //4) Create a audio-in synth in slot [2]
 
 q[\mkaudioindef] = OSCdef(\mkaudioin,{ |msg|
-	var obs, kbs;
+	var ibs, obs, kbs, slot;
+	ibs = msg[3].asInteger;
 	obs = Bus.audio(s, 1); //private audio bus for sound in
 	kbs = Bus.control(s, 1); //control bus for amplitude measurement/metering
 	q[msg[1].asSymbol] = [
+		ibs,
 		obs,
 		kbs,
-		Synth(\audioin_mono, [\ibs, msg[2].asInteger, \obs, obs, \kbs, kbs], q[\insgrp]), //synth to take audio in and route to private audio bus
+		q[\g0],
+		Synth(\audioin_mono, [\ibs, ibs, \obs, obs, \kbs, kbs], q[\g0]), //synth to take audio in and route to private audio bus
 	]
 }, "/mkaudioin");
 
@@ -478,47 +481,56 @@ q[\mkaudioindef] = OSCdef(\mkaudioin,{ |msg|
 /////////////////////////////////////////////////////////
 
 //OSCdef: \mkaudioOutdef
+//SynthMaking Template [msg]: 1=name, 2=group/slot, 3+(optional args);
+//Dictionary: 0=ibs, 1=obs, 2=kbs, 3=group/slot, 4=synth
 //msg[1]= Dictonary name for Sound-Out conglomerate
-//msg[2] = Sound Out Channel
+//msg[3] = Sound Out Channel
 //1) Adds an array to dictionary under the name in msg[1]
 //3) Create a control bus to send the amplitude measurement/metering to in slot [0]
 //4) Create a Audio-Out synth in slot [2]
 
 //Def for mono out
 q[\mkaudioOutdef_m] = OSCdef(\mkaudioOut_m,{ |msg|
-	var kbs;
+	var ibs, obs, kbs;
+	ibs = 999;
+	obs = msg[3].asInteger;
 	kbs = Bus.control(s, 1); //control bus for amplitude measurement/metering
 	q[msg[1].asSymbol] = [
+		ibs,
+		obs,
 		kbs,
-		"placeholder",
-		Synth(\audioOut_mono, [\obs, msg[2].asInteger, \kbs, kbs], q[\outsgrp]),
+		q[\g99],
+		Synth(\audioOut_mono, [\ibs, ibs, \obs, obs, \kbs, kbs], q[\g99]),
 	]
 }, "/mkaudioOut_m");
 
 //Def for stereo out
 q[\mkaudioOutdef_s] = OSCdef(\mkaudioOut_s,{ |msg|
-	var kbs;
-	kbs = Bus.control(s, 2); //control bus for amplitude measurement/metering
+	var ibs, obs, kbs;
+	ibs = 999;
+	obs = msg[3].asInteger;
+	kbs = Bus.control(s, 1); //control bus for amplitude measurement/metering
 	q[msg[1].asSymbol] = [
+		ibs,
+		obs,
 		kbs,
-		"placeholder",
-		Synth(\audioOut_stereo, [\obs, msg[2].asInteger, \kbs, kbs], q[\outsgrp]),
+		q[\g99],
+		Synth(\audioOut_stereo, [\ibs, ibs, \obs, obs, \kbs, kbs], q[\g99]),
 	]
 }, "/mkaudioOut_s");
 
 //OSCdef: /routeout - to choose a private audio bus to route out to soundcard
-//msg[1] = name of in conglermate to send out
-//msg[2] = name of out conglermate
-//msg[3] = out channel number
-q[\routeoutdef] = OSCdef(\routeout, { |msg| q[msg[2].asSymbol][2].set(\ibs, q[msg[1].asSymbol][0], \obs, msg[3].asInteger)}, "/routeout");
+//msg[1] = name of grabbing conglermate
+//msg[2] = name of conglermate grabbing from
+q[\routedef] = OSCdef(\route, { |msg| q[msg[1].asSymbol][4].set(\ibs, q[msg[2].asSymbol][1]) }, "/route");
 
 /////////////////////////////////////////////////////////
 ////  SET AMP ///////////////////////////////////////////
 /////////////////////////////////////////////////////////
 //msg[1] = dictionary name to set
 //msg[2] = amp value
-//synth should always be [2] in dictionary array
-q[\setampdef] = OSCdef(\setamp, {|msg| q[msg[1].asSymbol][2].set(\amp, msg[2].asFloat)}, "/setamp");
+//synth should always be [4] in dictionary array
+q[\setampdef] = OSCdef(\setamp, {|msg| q[msg[1].asSymbol][4].set(\amp, msg[2].asFloat)}, "/setamp");
 
 /////////////////////////////////////////////////////////
 ////  SIGNALS & DSP ////
@@ -529,6 +541,8 @@ q[\setampdef] = OSCdef(\setamp, {|msg| q[msg[1].asSymbol][2].set(\amp, msg[2].as
 //[names of all arguments...]
 
 //MAKE SIGNAL
+//SynthMaking Template [msg]: 1=name, 2=group/slot, 3+(optional args);
+//Dictionary: 0=ibs, 1=obs, 2=kbs, 3=group/slot, 4=synth
 //Add array to dictionary under name msg[1]:
 //0) audio out bus
 //1) place holder (no inbus)
@@ -539,43 +553,56 @@ q[\setampdef] = OSCdef(\setamp, {|msg| q[msg[1].asSymbol][2].set(\amp, msg[2].as
 q[\mksigdef] = OSCdef(\mksig, {|msg|
 	var argsvals = msg.copyRange(3, msg.size);
 	var obs = Bus.audio(s);
+	var kbs = Bus.control(s, 1); //control bus for amplitude measurement/metering
 	argsvals.do{|it, ix| if(ix.even, {argsvals[ix]=it.asSymbol}, {argsvals[ix]=it.asFloat})};
 	argsvals = argsvals++[\obs, obs];
 	q[msg[1].asSymbol] = [
+		nil,
 		obs,
-		"placeholder",
-		Synth(msg[2].asSymbol, argsvals, q[\insgroup]);
+		kbs,
+		q[\g0],
+		Synth(msg[2].asSymbol, argsvals, q[\g0]);
 	];
 }, "/mksig");
 
 //MAKE DSP
+//SynthMaking Template [msg]: 1=name, 2=group/slot, 3+(optional args);
+//Dictionary: 0=ibs, 1=obs, 2=kbs, 3=group/slot, 4=synth
 //Add array to dictionary under name msg[1]:
-//0) audio out bus
-//1) control bus
-//2) synth
 //msg[1] dictionary name
-//msg[2] synth name
-//msg[3] group name
-//msg[4].. list of args-value pairs
+//msg[2] group name
+//msg[3] synth name
+//msg[4] dictionary name of source
+//msg[5].. list of args-value pairs
 q[\mkdspdef_m] = OSCdef(\mkdsp_m, {|msg|
-	var argsvals = msg.copyRange(4, msg.size);
+	var argsvals = msg.copyRange(5, msg.size);
+	var ibs = q[ msg[4].asSymbol ][1];
 	var obs = Bus.audio(s);
 	var kbs = Bus.control(s);
+	var group = q[ ("q"++msg[2]).asSymbol ];
 	argsvals.do{|it, ix| if(ix.even, {argsvals[ix]=it.asSymbol}, {argsvals[ix]=it.asFloat})};
-	argsvals = argsvals++[\obs, obs, \kbs, kbs];
+	argsvals = argsvals++[\obs, obs, \kbs, kbs, \ibs, ibs];
 	q[msg[1].asSymbol] = [
+		msg[4].asSymbol,
 		obs,
 		kbs,
-		Synth(msg[2].asSymbol, argsvals, q[msg[3].asSymbol]);
+		group,
+		Synth(msg[3].asSymbol, argsvals, group);
 	];
 }, "/mkdsp_m");
-//Set Synth Def
+
+//Set Synth Args
 //msg[1] = dictionary name
 //msg[2...] = arg-val pairs
 q[\setsynthdef] = OSCdef(\setsynth, {|msg|
 	var argsvals = msg.copyRange(2, msg.size);
-	argsvals.do{|it, ix| if(ix>0, {q[msg[1].asSymbol][2].set(argsvals[ix-1].asSymbol, it.asFloat) })};
+	argsvals.do{|it, ix| if(ix>0, {q[msg[1].asSymbol][4].set(argsvals[ix-1].asSymbol, it.asFloat) })};
 }, "/setsynth");
+
+//WAY TO SET INS AND OUTS BY NAME
+//// ALWAYS GRAB FROM A NAMED-SYNTH OUT BUS [1]
+
+
 //Set RingMod Def
 //msg[1] = dictionary name
 //msg[2] = dict name for carrier synth
@@ -591,9 +618,7 @@ Archive.global.put(\DSPframework, q);
 
 //NEXT:
 
-// Sig adder & DSP adder
-// Way to store and recall synthdef specific arg presets with persistance
-// Make a step-by-step osc msg protocol and what it does:
+// Make a step-by-step osc msg protocol and what it does in SC with examples:
 //// sig - dsp - out
 //// live in - dsp - out
 // Prototype in Processing
@@ -742,4 +767,5 @@ SYNTHDEFS:
 \petalsOfResonance
 \sineWlfo
 \ringmod
+\noiseBurst
 */
