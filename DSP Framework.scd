@@ -433,7 +433,7 @@ q[\addsynthdefargsSpec].value(\petalsOfResonance, \trig, 0.0, 1.0, \lin); //trig
 /////////////   END SYNTH DEFS    ///////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
-)
+
 
 //Create 3 Groups: ins from soundcard, DSP,  and outs to soundcard
 q[\g0] = Group.new(s);
@@ -519,10 +519,10 @@ q[\mkaudioOutdef_s] = OSCdef(\mkaudioOut_s,{ |msg|
 	]
 }, "/mkaudioOut_s");
 
-//OSCdef: /routeout - to choose a private audio bus to route out to soundcard
+//OSCdef: /route - to choose a private audio bus to route out to soundcard
 //msg[1] = name of grabbing conglermate
 //msg[2] = name of conglermate grabbing from
-q[\routedef] = OSCdef(\route, { |msg| q[msg[1].asSymbol][4].set(\ibs, q[msg[2].asSymbol][1]) }, "/route");
+q[\routedef] = OSCdef(\route, { |msg| q[msg[2].asSymbol][4].set(\ibs, q[msg[1].asSymbol][1]) }, "/route");
 
 /////////////////////////////////////////////////////////
 ////  SET AMP ///////////////////////////////////////////
@@ -541,12 +541,6 @@ q[\setampdef] = OSCdef(\setamp, {|msg| q[msg[1].asSymbol][4].set(\amp, msg[2].as
 //[names of all arguments...]
 
 //MAKE SIGNAL
-//SynthMaking Template [msg]: 1=name, 2=group/slot, 3+(optional args);
-//Dictionary: 0=ibs, 1=obs, 2=kbs, 3=group/slot, 4=synth
-//Add array to dictionary under name msg[1]:
-//0) audio out bus
-//1) place holder (no inbus)
-//2) synth
 //msg[1] dictionary name
 //msg[2] synth name
 //msg[3].. list of args-value pairs
@@ -566,9 +560,6 @@ q[\mksigdef] = OSCdef(\mksig, {|msg|
 }, "/mksig");
 
 //MAKE DSP
-//SynthMaking Template [msg]: 1=name, 2=group/slot, 3+(optional args);
-//Dictionary: 0=ibs, 1=obs, 2=kbs, 3=group/slot, 4=synth
-//Add array to dictionary under name msg[1]:
 //msg[1] dictionary name
 //msg[2] group name
 //msg[3] synth name
@@ -601,6 +592,7 @@ q[\setsynthdef] = OSCdef(\setsynth, {|msg|
 
 //WAY TO SET INS AND OUTS BY NAME
 //// ALWAYS GRAB FROM A NAMED-SYNTH OUT BUS [1]
+//WORK ON RING MOD OSCDEF
 
 
 //Set RingMod Def
@@ -630,8 +622,10 @@ Archive.global.put(\DSPframework, q);
 a = NetAddr("localhost", 57120);
 a.sendMsg("/mkaudioin", "mic1", 0);
 a.sendMsg("/mkaudioOut_m", "out1", 0);
-a.sendMsg("/routeout", "mic1", "out1", 1);
-a.sendMsg("/setamp", "out1", 0);
+a.sendMsg("/route", "mic1", "out1", 1);
+a.sendMsg("/setsynth", "out1", "amp", 0.5);
+
+
 a.sendMsg("/mksig", "sine1", "sineWlfo", "rate", 0.1, "freqlo", 200, "freqhi", 1000);
 a.sendMsg("/setsynth", "sine1", "amp", 0);
 a.sendMsg("/routeout", "sine1", "out1", 1);
@@ -640,6 +634,51 @@ a.sendMsg("/mkdsp_m", "rm1", "ringmod", "dspgrp4");
 a.sendMsg("/setrm", "rm1", "mic1", "sine1");
 a.sendMsg("/routeout", "rm1", "out1", 1);
 a.sendMsg("/setsynth", "sine1", "rate", 3.3, "freqlo", 10, "freqhi", 30);
+
+/*
+OSC Defs
+
+/mkaudioin
+msg[1]= Dictonary name for Sound-In conglomerate
+msg[2] = Sound in Channel
+
+/mkaudioOut_m or /mkaudioOut_s
+msg[1]= Dictonary name for Sound-Out conglomerate
+msg[2] = Sound Out Channel
+
+/route
+msg[1] = name of grabbing conglermate
+msg[2] = name of conglermate grabbing from
+
+/mksig
+msg[1] dictionary name
+msg[2] synth name
+msg[3].. list of args-value pairs
+
+/mkdsp_m
+msg[1] dictionary name
+msg[2] group name
+msg[3] synth name
+msg[4] dictionary name of source
+msg[5].. list of args-value pairs
+
+/setsynth
+msg[1] = dictionary name
+msg[2...] = arg-val pairs
+
+/getsdargs
+name of synthdef as msg[1]
+
+/setsdargspec
+name of synthdef as msg[1]
+arg name as msg[2]
+lo, hi, warp as msg[3-5]
+
+/getsdargspec
+name of synthdef as msg[1]
+arg name as msg[2]
+
+*/
 
 //In synth Dictionary
 //Creates an audio bus
