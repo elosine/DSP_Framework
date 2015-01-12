@@ -456,7 +456,7 @@ q[\g99] = Group.after(q[\dspgrp]);
 //OSCdef: \mkaudioindef
 //SynthMaking Template [msg]: 1=name, 2=group/slot, 3+(optional args); Dictionary: 0=ibs, 1=obs, 2=kbs, 3=group/slot, 4=synth
 //msg[1]= Dictonary name for Sound-In conglomerate
-//msg[3] = Sound in Channel
+//msg[2] = Sound in Channel
 //1) Adds an array to dictionary under the name in msg[1]
 //2) Create a private audio bus to send the audio in to in slot [0]
 //3) Create a control bus to send the amplitude measurement/metering to in slot [1]
@@ -464,7 +464,7 @@ q[\g99] = Group.after(q[\dspgrp]);
 
 q[\mkaudioindef] = OSCdef(\mkaudioin,{ |msg|
 	var ibs, obs, kbs, slot;
-	ibs = msg[3].asInteger;
+	ibs = msg[2].asInteger;
 	obs = Bus.audio(s, 1); //private audio bus for sound in
 	kbs = Bus.control(s, 1); //control bus for amplitude measurement/metering
 	q[msg[1].asSymbol] = [
@@ -493,7 +493,7 @@ q[\mkaudioindef] = OSCdef(\mkaudioin,{ |msg|
 q[\mkaudioOutdef_m] = OSCdef(\mkaudioOut_m,{ |msg|
 	var ibs, obs, kbs;
 	ibs = 999;
-	obs = msg[3].asInteger;
+	obs = msg[2].asInteger;
 	kbs = Bus.control(s, 1); //control bus for amplitude measurement/metering
 	q[msg[1].asSymbol] = [
 		ibs,
@@ -508,7 +508,7 @@ q[\mkaudioOutdef_m] = OSCdef(\mkaudioOut_m,{ |msg|
 q[\mkaudioOutdef_s] = OSCdef(\mkaudioOut_s,{ |msg|
 	var ibs, obs, kbs;
 	ibs = 999;
-	obs = msg[3].asInteger;
+	obs = msg[2].asInteger;
 	kbs = Bus.control(s, 1); //control bus for amplitude measurement/metering
 	q[msg[1].asSymbol] = [
 		ibs,
@@ -520,9 +520,13 @@ q[\mkaudioOutdef_s] = OSCdef(\mkaudioOut_s,{ |msg|
 }, "/mkaudioOut_s");
 
 //OSCdef: /route - to choose a private audio bus to route out to soundcard
-//msg[1] = name of grabbing conglermate
-//msg[2] = name of conglermate grabbing from
+//msg[1] = name of operator sound comming from
+//msg[2] = name of operator sound going to
 q[\routedef] = OSCdef(\route, { |msg| q[msg[2].asSymbol][4].set(\ibs, q[msg[1].asSymbol][1]) }, "/route");
+
+//OSCdef: /unroute - to choose a private audio bus to route out to soundcard
+//msg[1] = name of operator sound going to
+q[\unroutedef] = OSCdef(\unroute, { |msg| q[msg[1].asSymbol][4].set(\ibs, nil) }, "/unroute");
 
 /////////////////////////////////////////////////////////
 ////  SET AMP ///////////////////////////////////////////
@@ -620,10 +624,11 @@ Archive.global.put(\DSPframework, q);
 
 
 a = NetAddr("localhost", 57120);
-a.sendMsg("/mkaudioin", "mic1", 0);
-a.sendMsg("/mkaudioOut_m", "out1", 0);
-a.sendMsg("/route", "mic1", "out1", 1);
-a.sendMsg("/setsynth", "out1", "amp", 0.5);
+s.meter;
+a.sendMsg("/mkaudioin", "mic1", 0); // /mkaudioin, name of operator, in channel
+a.sendMsg("/mkaudioOut_m", "out1", 0); // /mkaudioOut_m, name of operator, out channel
+a.sendMsg("/route", "mic1", "out1"); // /route, name of in operator, name of out operator
+a.sendMsg("/setsynth", "out1", "amp", 1.0); // /setsynth, name of operator, arg/val pairs...
 
 
 a.sendMsg("/mksig", "sine1", "sineWlfo", "rate", 0.1, "freqlo", 200, "freqhi", 1000);
