@@ -574,7 +574,7 @@ q[\mkdspdef_m] = OSCdef(\mkdsp_m, {|msg|
 	var ibs = q[ msg[4].asSymbol ][1];
 	var obs = Bus.audio(s);
 	var kbs = Bus.control(s);
-	var group = q[ ("q"++msg[2]).asSymbol ];
+	var group = q[ ("g"++msg[2]).asSymbol ];
 	argsvals.do{|it, ix| if(ix.even, {argsvals[ix]=it.asSymbol}, {argsvals[ix]=it.asFloat})};
 	argsvals = argsvals++[\obs, obs, \kbs, kbs, \ibs, ibs];
 	q[msg[1].asSymbol] = [
@@ -629,7 +629,20 @@ a.sendMsg("/mkaudioin", "mic1", 0); // /mkaudioin, name of operator, in channel
 a.sendMsg("/mkaudioOut_m", "out1", 0); // /mkaudioOut_m, name of operator, out channel
 a.sendMsg("/route", "mic1", "out1"); // /route, name of in operator, name of out operator
 a.sendMsg("/setsynth", "out1", "amp", 1.0); // /setsynth, name of operator, arg/val pairs...
+a.sendMsg("/unroute", "out1"); // /unroute, name of out operator
 
+a.sendMsg("/mkdsp_m", "petals", 4, "petalsOfResonance", "mic1");
+// /mkdsp_m, name of out operator, group num, synthdef name, in source, arg/val pairs
+a.sendMsg("/route", "petals", "out1"); // /route, name of in operator, name of out operator
+a.sendMsg("/setsynth", "petals", "trig", 1.0); // /setsynth, name of operator, arg/val pairs...
+
+//Check out petals manually and troubleshoot system
+
+msg[1] dictionary name
+msg[2] group name
+msg[3] synth name
+msg[4] dictionary name of source
+msg[5].. list of args-value pairs
 
 a.sendMsg("/mksig", "sine1", "sineWlfo", "rate", 0.1, "freqlo", 200, "freqhi", 1000);
 a.sendMsg("/setsynth", "sine1", "amp", 0);
@@ -685,6 +698,10 @@ arg name as msg[2]
 
 */
 
+/*
+
+if dictionary entry exsists, do not create new one and send a msg
+
 //In synth Dictionary
 //Creates an audio bus
 //creates Monitoring to control bus
@@ -719,7 +736,8 @@ arg name as msg[2]
 
 //Way of capturing nice synthdef settings
 //Make running Appendix: All SynthDef Names, All OSC addresses, All Dictionary Entries
-/*
+
+
 DICTIONARY ENTRIES:
 
 q[\synthdefs] = ();
