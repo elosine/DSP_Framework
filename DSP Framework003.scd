@@ -1,3 +1,11 @@
+/*
+CONTINUE ON WITH REVAMP
+USE SC TO MAKE AUTOGUIS TO ADJUST SYNTHDEFS
+
+*/
+
+
+
 (
 //Add everything to a dictionary
 q = ();
@@ -15,12 +23,13 @@ q[\synthdefs] = ();
 //function to pull control names and add to dictionary
 q[\addsynthdefFunk] = {
 	arg syndefname;
-	var get, ctlnames;
+	var get, ctlnames, specs, warp;
 	syndefname = syndefname.asSymbol; //just a percausion probably redundant internally
 	q[\synthdefs][syndefname] = ();
 	//Use SynthDesc to make a dictionary of arg names - ctlnames
 	get = SynthDesc.read(SynthDef.synthDefDir ++ syndefname++".scsyndef");
 	ctlnames = get.[syndefname].controlNames;
+	specs = get[syndefname].metadata[\specs];
 	//store args in dictionary
 	q[\synthdefs][syndefname][\args] = ctlnames; //Array of argument names
 	//Create empty dictionaries to store synthdef values
@@ -30,10 +39,20 @@ q[\addsynthdefFunk] = {
 	//uses controlNames to make a dictionary \defaults with argname/defaultvalue dictionaries
 	get.[syndefname].controls.do{|it ix| q[\synthdefs][syndefname][\defaults][it.name]= it.defaultValue};
 	//Creates a spec for each arg with dummy \lo, \hi, and \warp values
-	ctlnames.do{ |it, ix|
-		q[\synthdefs][syndefname][\specs][it] = (\lo:0, \hi:1, \warp:\lin);
+
+	specs.keys.asArray.do{ |it, ix|
+		q[\synthdefs][syndefname][\specs][it] = (
+			\min:specs[it].minval,
+			\max:specs[it].minval,
+			\warp:specs[it].warp,
+			\step:specs[it].step,
+			\default:specs[it].default,
+			\units:specs[it].units
+		);
 	}
+
 };
+
     ////////////////////////////////////////////////////////////
    /////////  q[\getsynthdefargsDef]
   /////////  OSCmsg: /getsdargs(synthdef name)
@@ -49,6 +68,10 @@ q[\getsynthdefargsDef] = OSCdef(\getsdargs,{
 	mailtoadr.sendMsg("/sdargs", argsStr);
 }, "/getsdargs");
 
+)
+q[\addsynthdefFunk].value(\petalsOfResonance);
+q[\synthdefs][\petalsOfResonance][\specs][\fund][\warp]
+//RESUME HERE////// specs(get), args(get), defaults(get), presets(get/set)
 
      ///////////////////////////////////////////////////////////////////////////////////////////
     /////////  q[\getsynthdefargsDef]
