@@ -1,25 +1,19 @@
-
-
-
 (
 //Add everything to a dictionary
 q = ();
-/////////////////////////////////////////
-//////  SYNTHDEFS ///////////////////////
-/////////////////////////////////////////
 
+   /////////////////////////////////////////////////
+  //////////////  q[\synthdefs] ///////////////////
+ /////////////////////////////////////////////////
 q[\synthdefs] = ();
 // q[\synthdefs] is a dictionary
-// Each entry contains an array indexed by the synthdef name
-// Item 0 is the actual synthdef
-// Item 1 is a dictionary indexed by each of the argument names of the synthdef
-// q[\addsyndef] is a function that uses SynthDesc to grab the argument names after the synthdef is added
-// Each item in the argument dictionary is another array with 3 items defining the spec of the argument
-// Item 0 is lo, item 1 is hi and item 2 is warp - can be \lin, \exp, or a number for curve
+// Each entry contains a dictionary indexed by the synthdef name
 
-
+   /////////////////////////////////////////////////
+  ///////////  q[\addsynthdefFunk] ////////////////
+ /////////////////////////////////////////////////
 //function to pull control names and add to dictionary
-q[\addsyndef] = {
+q[\addsynthdefFunk] = {
 	arg syndefname;
 	var get, ctlnames;
 	syndefname = syndefname.asSymbol; //just a percausion probably redundant internally
@@ -28,7 +22,7 @@ q[\addsyndef] = {
 	get = SynthDesc.read(SynthDef.synthDefDir ++ syndefname++".scsyndef");
 	ctlnames = get.[syndefname].controlNames;
 	//store args in dictionary
-	q[\synthdefs][syndefname][\args] = ctlnames;
+	q[\synthdefs][syndefname][\args] = ctlnames; //Array of argument names
 	//Create empty dictionaries to store synthdef values
 	q[\synthdefs][syndefname][\defaults] = ();
 	q[\synthdefs][syndefname][\specs] = ();
@@ -40,54 +34,35 @@ q[\addsyndef] = {
 		q[\synthdefs][syndefname][\specs][it] = (\lo:0, \hi:1, \warp:\lin);
 	}
 };
-
-
-q[\addsyndef].value(\petalsOfResonance)
-q[\synthdefs][\petalsOfResonance][\args]
-q[\synthdefs][\petalsOfResonance][\defaults]
-q[\synthdefs][\petalsOfResonance][\specs]
-q[\synthdefs][\petalsOfResonance][\presets]
-
-//SynthDefs to handle Sound-Out to soundcard
-q[\synthdefs][\audioOut_stereo] = [
-	SynthDef( \audioOut_stereo, {
-		arg ibs, obs, kbs, amp=1;
-		var in, rms;
-		in = In.ar([ibs, ibs+1])*amp;
-		rms = Amplitude.kr(in).ampdb.linlin(-80.0, 0.0, 0.0, 1.0);
-		Out.kr(kbs, rms); //send rms amplitude measure to a control bus
-		Out.ar(obs, in)
-	}).load,
-	(), //Empty Dictionary to contain any Arg Specs
-	() //Empty Dictionary for presets
-];
-
-//run function to add control names
-q[\addsyndef].value(\audioOut_stereo);
-//Run function(s) to add any specs to arguments
-q[\addsynthdefargsSpec].value(\audioOut_stereo, \amp, 0.0, 1.0, \lin);
-(), //defaults
-	(), //Empty Dictionary to contain any Arg Specs
-	() //Empty Dictionary for presets
-
-//Function: to add spec to args
-q[\addsynthdefargsSpec] = {
-	arg syndefname, argname, lo, hi, warp;
-	q[\synthdefs][syndefname][1][argname][0] = lo;
-	q[\synthdefs][syndefname][1][argname][1] = hi;
-	q[\synthdefs][syndefname][1][argname][2] = warp;
-};
-
-//OSCdefs to poll and set and get synthdef arg specs:
-//Poll synthdef args
-//Send me: name of synthdef as msg[1]
-q[\pollsyndefargs] = OSCdef(\pollsyndefargs,{
+    ////////////////////////////////////////////////////////////
+   /////////  q[\getsynthdefargsDef]
+  /////////  OSCmsg: /getsdargs(synthdef name)
+ /////////   Returns to Requester: /sdargs(single string of all args delimited by #)
+/////////////////////////////////////////////////////////////
+q[\getsynthdefargsDef] = OSCdef(\getsdargs,{
 	arg msg, time, addr;
 	var mailtoadr, args, argsStr="";
 	mailtoadr = addr;
-	args = q[\synthdefs][msg[1].asSymbol][1].keys.asArray;
+	args = q[\synthdefs][msg[1].asSymbol][\args];
+	//Creates single string with the # as delimiter
 	args.do{|it, ix| argsStr = if(ix==0,{argsStr=it},{argsStr=argsStr++"#"++it})};
-	argsStr.postln;
+	mailtoadr.sendMsg("/sdargs", argsStr);
+}, "/getsdargs");
+
+
+     ///////////////////////////////////////////////////////////////////////////////////////////
+    /////////  q[\getsynthdefargsDef]
+   ////////////////////////////////////////////////////////////////////////////////////////////
+  /////////  OSCmsg: /getsdargs(synthdef name)
+ /////////   Returns to Requester: /sdargs(single string of all args delimited by #)
+/////////////////////////////////////////////////////////////////////////////////////////////
+q[\getsynthdefargsDef] = OSCdef(\getsdargs,{
+	arg msg, time, addr;
+	var mailtoadr, args, argsStr="";
+	mailtoadr = addr;
+	args = q[\synthdefs][msg[1].asSymbol][\args];
+	//Creates single string with the # as delimiter
+	args.do{|it, ix| argsStr = if(ix==0,{argsStr=it},{argsStr=argsStr++"#"++it})};
 	mailtoadr.sendMsg("/sdargs", argsStr);
 }, "/getsdargs");
 
@@ -133,7 +108,7 @@ q[\synthdefs][\audioin_mono] = [
 		rms = Amplitude.kr(in).ampdb.linlin(-80.0, 0.0, 0.0, 1.0);
 		Out.kr(kbs, rms); //send rms amplitude measure to a control bus
 		Out.ar(obs, in)
-	}).load,
+	}, metadata: (specs: (cutoff: \freq, volume: \amp))).add;).load,
 	(), //Empty Dictionary to contain any Arg Specs
 	() //Empty Dictionary for presets
 ];
@@ -445,7 +420,7 @@ q[\synthdefs][\petalsOfResonance] = [
 
 		Out.ar(obs, ltdOutput);
 
-		}, [0.069]
+		}, metadata
 	).load,
 
 	(),
