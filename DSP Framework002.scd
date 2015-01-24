@@ -17,15 +17,60 @@ q[\synthdefs] = ();
 // Each item in the argument dictionary is another array with 3 items defining the spec of the argument
 // Item 0 is lo, item 1 is hi and item 2 is warp - can be \lin, \exp, or a number for curve
 
+(
 //function to pull control names and add to dictionary
 q[\addsyndef] = {
 	arg syndefname;
 	var get, ctlnames;
-	syndefname = syndefname.asSymbol;
+	syndefname = syndefname.asSymbol; //just a percausion probably redundant internally
+	q[\synthdefs][syndefname] = ();
+	//Use SynthDesc to make a dictionary of arg names - ctlnames
 	get = SynthDesc.read(SynthDef.synthDefDir ++ syndefname++".scsyndef");
-	ctlnames = get.[syndefname.asSymbol].controlNames;
-	ctlnames.do{ |it, ix| q[\synthdefs][syndefname][1][it] = Array.newClear(3) }
+	ctlnames = get.[syndefname].controlNames;
+	//store args in dictionary
+	q[\synthdefs][syndefname][\args] = ctlnames;
+	//Create empty dictionaries to store synthdef values
+	q[\synthdefs][syndefname][\defaults] = ();
+	q[\synthdefs][syndefname][\specs] = ();
+	q[\synthdefs][syndefname][\presets] = ();
+	//uses controlNames to make a dictionary \defaults with argname/defaultvalue dictionaries
+	get.[syndefname].controls.do{|it ix| q[\synthdefs][syndefname][\defaults][it.name]= it.defaultValue};
+	//Creates a spec for each arg with empty \lo, \hi, and \warp values
+	ctlnames.do{ |it, ix|
+		q[\synthdefs][syndefname][\specs][it] = (\lo:0);
+		q[\synthdefs][syndefname][\specs][it] = (\hi:1);
+		q[\synthdefs][syndefname][\specs][it] = (\warp:\lin);
+	}
 };
+)
+dictionary
+q[\addsyndef].value(\petalsOfResonance)
+q[\synthdefs][\petalsOfResonance][\args]
+q[\synthdefs][\petalsOfResonance][\defaults]
+q[\synthdefs][\petalsOfResonance][\specs]
+q[\synthdefs][\petalsOfResonance][\presets]
+
+//SynthDefs to handle Sound-Out to soundcard
+q[\synthdefs][\audioOut_stereo] = [
+	SynthDef( \audioOut_stereo, {
+		arg ibs, obs, kbs, amp=1;
+		var in, rms;
+		in = In.ar([ibs, ibs+1])*amp;
+		rms = Amplitude.kr(in).ampdb.linlin(-80.0, 0.0, 0.0, 1.0);
+		Out.kr(kbs, rms); //send rms amplitude measure to a control bus
+		Out.ar(obs, in)
+	}).load,
+	(), //Empty Dictionary to contain any Arg Specs
+	() //Empty Dictionary for presets
+];
+
+//run function to add control names
+q[\addsyndef].value(\audioOut_stereo);
+//Run function(s) to add any specs to arguments
+q[\addsynthdefargsSpec].value(\audioOut_stereo, \amp, 0.0, 1.0, \lin);
+(), //defaults
+	(), //Empty Dictionary to contain any Arg Specs
+	() //Empty Dictionary for presets
 
 //Function: to add spec to args
 q[\addsynthdefargsSpec] = {
@@ -596,12 +641,17 @@ q[\mkdspdef_m] = OSCdef(\mkdsp_m, {|msg|
 	];
 }, "/mkdsp_m");
 
+  /////////////////////////////
+ //////  SET SYNTH ARGS //////
+/////////////////////////////
+
 //Set Synth Args
 //msg[1] = dictionary name
 //msg[2...] = arg-val pairs
-q[\setsynthdef] = OSCdef(\setsynth, {|msg|
-	var argsvals = msg.copyRange(2, msg.size);
-	argsvals.do{|it, ix| if(ix>0, {q[msg[1].asSymbol][4].set(argsvals[ix-1].asSymbol, it.asFloat) })};
+q[\setsynthdef] = OSCdef(\setsynth, {
+	arg msg
+	var argsvals = msg.copyRange(2, msg.size); //makes a new array with only the arg-val pairs
+	argsvals.do{|it, ix| if(ix>0, { q[msg[1].asSymbol][4].set(argsvals[ix-1].asSymbol, it.asFloat) })};
 }, "/setsynth");
 
 //WAY TO SET INS AND OUTS BY NAME
@@ -621,6 +671,7 @@ q[\setrmdef] = OSCdef(\setrm, {|msg|
 //msg[1] = synth dictionary name
 //msg[2] = ip
 //msg[3] = port
+//Sends back a msg to ip, port with this oscaddr - /rms/(synthname)
 q[\getrmsdef] = OSCdef(\getrms, {|msg|
 	var rms, replyadr, synthname, replyname;
 	synthname = msg[1].asSymbol;
