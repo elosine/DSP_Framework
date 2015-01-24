@@ -39,77 +39,86 @@ q[\addsynthdefFunk] = {
 	//uses controlNames to make a dictionary \defaults with argname/defaultvalue dictionaries
 	get.[syndefname].controls.do{|it ix| q[\synthdefs][syndefname][\defaults][it.name]= it.defaultValue};
 	//Creates a spec for each arg with dummy \lo, \hi, and \warp values
-
 	specs.keys.asArray.do{ |it, ix|
 		q[\synthdefs][syndefname][\specs][it] = (
-			\min:specs[it].minval,
-			\max:specs[it].minval,
+			\minval:specs[it].minval,
+			\maxval:specs[it].maxval,
 			\warp:specs[it].warp,
 			\step:specs[it].step,
 			\default:specs[it].default,
 			\units:specs[it].units
 		);
 	}
-
 };
 
     ////////////////////////////////////////////////////////////
    /////////  q[\getsynthdefargsDef]
   /////////  OSCmsg: /getsdargs(synthdef name)
- /////////   Returns to Requester: /sdargs(single string of all args delimited by #)
+/////////   Returns to Requester: /sdargs/(name of synthdef)(single string of all args delimited by #)
 /////////////////////////////////////////////////////////////
 q[\getsynthdefargsDef] = OSCdef(\getsdargs,{
 	arg msg, time, addr;
-	var mailtoadr, args, argsStr="";
+	var mailtoadr, args, sdname, argsStr="";
 	mailtoadr = addr;
-	args = q[\synthdefs][msg[1].asSymbol][\args];
+	sdname = msg[1].asSymbol;
+	args = q[\synthdefs][sdname][\args];
 	//Creates single string with the # as delimiter
 	args.do{|it, ix| argsStr = if(ix==0,{argsStr=it},{argsStr=argsStr++"#"++it})};
-	mailtoadr.sendMsg("/sdargs", argsStr);
+	mailtoadr.sendMsg("/sdargs/"++sdname, argsStr);
 }, "/getsdargs");
-
-)
-q[\addsynthdefFunk].value(\petalsOfResonance);
-q[\synthdefs][\petalsOfResonance][\specs][\fund][\warp]
-//RESUME HERE////// specs(get), args(get), defaults(get), presets(get/set)
 
      ///////////////////////////////////////////////////////////////////////////////////////////
-    /////////  q[\getsynthdefargsDef]
+    /////////  q[\getsynthdefargsdefaultDef]
    ////////////////////////////////////////////////////////////////////////////////////////////
-  /////////  OSCmsg: /getsdargs(synthdef name)
- /////////   Returns to Requester: /sdargs(single string of all args delimited by #)
+  /////////  OSCmsg: /getsdargdefault(synthdef name, arg name)
+ /////////   Returns to Requester: /sdargdefault(val)
 /////////////////////////////////////////////////////////////////////////////////////////////
-q[\getsynthdefargsDef] = OSCdef(\getsdargs,{
+q[\getsynthdefargsdefaultDef] = OSCdef(\getsdargdefault,{
 	arg msg, time, addr;
-	var mailtoadr, args, argsStr="";
+	var mailtoadr, val, argname;
 	mailtoadr = addr;
-	args = q[\synthdefs][msg[1].asSymbol][\args];
-	//Creates single string with the # as delimiter
-	args.do{|it, ix| argsStr = if(ix==0,{argsStr=it},{argsStr=argsStr++"#"++it})};
-	mailtoadr.sendMsg("/sdargs", argsStr);
-}, "/getsdargs");
+	argname = msg[2].asSymbol;
+	val = q[\synthdefs][msg[1].asSymbol][\defaults][argname];
+	mailtoadr.sendMsg("/sdargdefault/"++argname, val);
+}, "/getsdargdefault");
 
-//Set SynthDef arg spec
-//Send me: name of synthdef as msg[1]
-//arg name as msg[2]
-//lo, hi, warp as msg[3-5]
-q[\setsdargspec] = OSCdef(\setsdargspec,{|msg|
-	q[\addsynthdefargsSpec].value(msg[1].asSymbol, msg[2].asSymbol, msg[3].asFloat, msg[3].asFloat, msg[5])
-}, "/setsdargspec");
-
-//Get SynthDef arg spec
-//Send me: name of synthdef as msg[1]
-//arg name as msg[2]
-q[\getsdargspec] = OSCdef(\getsdargspec,{
+    ////////////////////////////////////////////////////////////
+   /////////  q[\getsynthdefspecDef]
+  /////////  OSCmsg: /getsdspec(synthdef name, arg name)
+/////////   Returns to Requester: /sdspec/(name of synthdef)/(name of arg) (single string of arg/val pairs delimited by #)
+/////////////////////////////////////////////////////////////
+q[\getsynthdefspecDef] = OSCdef(\getsdspec,{
 	arg msg, time, addr;
-	var mailtoadr, args, argsStr="";
+	var mailtoadr, specs, sdname, argname, argsStr="";
 	mailtoadr = addr;
-	args = q[\synthdefs][msg[1].asSymbol][1][msg[2].asSymbol];
-	args.postln;
-	args.do{|it, ix| argsStr = if(ix==0,{argsStr=it.asString},{argsStr=argsStr++"#"++it.asString})};
-	argsStr.postln;
-	mailtoadr.sendMsg("/sdargs", argsStr)
-}, "/getsdargspec");
+	sdname = msg[1].asSymbol;
+	argname = msg[2].asSymbol;
+	specs = q[\synthdefs][sdname][\specs][argname];
+	argsStr = \minval++"#"++specs[\minval].asString++"#"++
+	\maxval++"#"++specs[\maxval].asString++"#"++
+	\step++"#"++specs[\step].asString++"#"++
+	\default++"#"++specs[\default].asString++"#"++
+	\untis++"#"++specs[\units].asString;
+	//("/sdspecs/"++sdname++argname).postln;
+	mailtoadr.sendMsg("/sdspec/"++sdname++"/"++argname, argsStr);
+}, "/getsdspec");
+)
+
+q[\addsynthdefFunk].value(\petalsOfResonance);
+n = NetAddr("localhost", 57120);
+OSCdef(\teet, {|msg| msg.postln }, "/sdspec/petalsOfResonance/kbs");
+n.sendMsg("/getsdspec", \petalsOfResonance, \kbs);
+
+//RESUME HERE//////  presets(get/set)
+//add synthdefs to synthdef page
+//distinguish between:
+//ins
+//outs
+//signals
+//dsp
+//modulated dsp
+
+
 
   //////////////////////
  //////SYNTHDEFS://////
@@ -311,173 +320,7 @@ q[\addsyndef].value(\ringmod);
 //Run function(s) to add any specs to arguments
 q[\addsynthdefargsSpec].value(\ringmod, \amp, 0.0, 1.0, \lin);
 
- /////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////
 
-    ///////////////////////////////////////
-   ////                              /////
-  ////    \petalsOfResonance        /////
- ////                              /////
-///////////////////////////////////////
-
-q[\synthdefs][\petalsOfResonance] = [
-
-	SynthDef("petalsOfResonance", {
-
-		arg masteramp=0.5, inamp=1.0, ibs=0, obs=0, kbs, fund=200, firstPartial=2, bank2MidiOffset=0.25, spread=0.33, ringL1=7.75, ringL2=9.5, inputLen=1;
-		var	pAmp, partialTunedA, partialTunedB, input, output, rms, outArrayA, outArrayA1, outArrayA2, outArray, inenv, ltdOutput, masterEnv, finalOut,
-		p1a, p2a, p3a, p4a, p5a, p6a, p7a, p8a, p9a, p10a, p11a, p12a, p13a,
-		p1b, p2b, p3b, p4b, p5b, p6b, p7b, p8b, p9b, p10b, p11b, p12b, p13b,
-		resA1, resA2, resA3, resA4, resA5, resA6, resA7, resA8, resA9, resA10, resA11, resA12, resA13,
-		resB1, resB2, resB3, resB4, resB5, resB6, resB7, resB8, resB9, resB10, resB11, resB12, resB13;
-
-		pAmp = -40.dbamp;
-
-		//Two functions to create two sets of partials
-		partialTunedA = 	{
-			arg partialNum;
-			var freq, freqMidi, tuner, freqTunedMidi, freqTuned;
-			//firstPartial allows you to start the series at a higher partial than the fund
-			//the fund and spread work together (maybe redundantly)
-			//to determine the space between each partial
-			freq = fund *( firstPartial + (spread*partialNum) );
-			freqMidi = freq.cpsmidi;
-			//constantly shifting tuner for each partial
-			//so the sound is constantly shifting
-			tuner = SinOsc.kr(rrand(0.07, 0.013), 0, 0.5);
-			freqTunedMidi = freqMidi + tuner;
-			freqTuned = freqTunedMidi.midicps;
-		};
-
-		partialTunedB = 	{
-			arg partialNum;
-			var freq, freqMidi, tuner, freqTunedMidi, freqTuned;
-			freq = fund *( firstPartial + (spread*partialNum) );
-			freqMidi = freq.cpsmidi;
-			tuner = SinOsc.kr(rrand(0.07, 0.013), 0, 0.5);
-			freqTunedMidi = freqMidi + tuner + bank2MidiOffset;
-			freqTuned = freqTunedMidi.midicps;
-		};
-
-		p1a= partialTunedA.value(0);
-		p2a= partialTunedA.value(1);
-		p3a= partialTunedA.value(2);
-		p4a= partialTunedA.value(3);
-		p5a= partialTunedA.value(4);
-		p6a= partialTunedA.value(5);
-		p7a= partialTunedA.value(6);
-		p8a= partialTunedA.value(7);
-		p9a= partialTunedA.value(8);
-		p10a= partialTunedA.value(9);
-		p11a= partialTunedA.value(10);
-		p12a= partialTunedA.value(11);
-		p13a= partialTunedA.value(12);
-
-		p1b= partialTunedB.value(0);
-		p2b= partialTunedB.value(1);
-		p3b= partialTunedB.value(2);
-		p4b= partialTunedB.value(3);
-		p5b= partialTunedB.value(4);
-		p6b= partialTunedB.value(5);
-		p7b= partialTunedB.value(6);
-		p8b= partialTunedB.value(7);
-		p9b= partialTunedB.value(8);
-		p10b= partialTunedB.value(9);
-		p11b= partialTunedB.value(10);
-		p12b= partialTunedB.value(11);
-		p13b= partialTunedB.value(12);
-
-		input = In.ar(ibs);
-		inenv = EnvGen.ar( Env.perc(0.02, inputLen, 1.0, -1), \t_tr.kr(0, 0.0001));
-		input =  input * inamp * inenv;
-		//input = PinkNoise.ar(0.5) * Decay2.ar(Impulse.ar(0.15), 0.15, 0.75);
-
-		//Form 13 resonators for each bank/spectrum
-		resA1 = DynKlank.ar(`[[p1a], nil, [rrand(ringL1, ringL2)]], input);
-		resA2 = DynKlank.ar(`[[p2a], nil, [rrand(ringL1, ringL2)]], input);
-		resA3 = DynKlank.ar(`[[p3a], nil, [rrand(ringL1, ringL2)]], input);
-		resA4 = DynKlank.ar(`[[p4a], nil, [rrand(ringL1, ringL2)]], input);
-		resA5 = DynKlank.ar(`[[p5a], nil, [rrand(ringL1, ringL2)]], input);
-		resA6 = DynKlank.ar(`[[p6a], nil, [rrand(ringL1, ringL2)]], input);
-		resA7 = DynKlank.ar(`[[p7a], nil, [rrand(ringL1, ringL2)]], input);
-		resA8 = DynKlank.ar(`[[p8a], nil, [rrand(ringL1, ringL2)]], input);
-		resA9 = DynKlank.ar(`[[p9a], nil, [rrand(ringL1, ringL2)]], input);
-		resA10 = DynKlank.ar(`[[p10a], nil, [rrand(ringL1, ringL2)]], input);
-		resA11 = DynKlank.ar(`[[p11a], nil, [rrand(ringL1, ringL2)]], input);
-		resA12 = DynKlank.ar(`[[p12a], nil, [rrand(ringL1, ringL2)]], input);
-		resA13 = DynKlank.ar(`[[p13a], nil, [rrand(ringL1, ringL2)]], input);
-
-		resB1 = DynKlank.ar(`[[p1b], nil, [rrand(ringL1, ringL2)]], input);
-		resB2 = DynKlank.ar(`[[p2b], nil, [rrand(ringL1, ringL2)]], input);
-		resB3 = DynKlank.ar(`[[p3b], nil, [rrand(ringL1, ringL2)]], input);
-		resB4 = DynKlank.ar(`[[p4b], nil, [rrand(ringL1, ringL2)]], input);
-		resB5 = DynKlank.ar(`[[p5b], nil, [rrand(ringL1, ringL2)]], input);
-		resB6 = DynKlank.ar(`[[p6b], nil, [rrand(ringL1, ringL2)]], input);
-		resB7 = DynKlank.ar(`[[p7b], nil, [rrand(ringL1, ringL2)]], input);
-		resB8 = DynKlank.ar(`[[p8b], nil, [rrand(ringL1, ringL2)]], input);
-		resB9 = DynKlank.ar(`[[p9b], nil, [rrand(ringL1, ringL2)]], input);
-		resB10 = DynKlank.ar(`[[p10b], nil, [rrand(ringL1, ringL2)]], input);
-		resB11 = DynKlank.ar(`[[p11b], nil, [rrand(ringL1, ringL2)]], input);
-		resB12 = DynKlank.ar(`[[p12b], nil, [rrand(ringL1, ringL2)]], input);
-		resB13 = DynKlank.ar(`[[p13b], nil, [rrand(ringL1, ringL2)]], input);
-
-		//Make an array of resonators and scramble them up
-		outArrayA = [ resA1*pAmp, resA2*pAmp, resA3*pAmp, resA4*pAmp, resA5*pAmp, resA6*pAmp, resA7*pAmp, resA8*pAmp, resA9*pAmp, resA10*pAmp,
-			resA11*pAmp, resA12*pAmp, resA13*pAmp, resB1*pAmp, resB2*pAmp, resB3*pAmp, resB4*pAmp, resB5*pAmp, resB6*pAmp, resB7*pAmp,
-			resB8*pAmp, resB9*pAmp, resB10*pAmp, resB11*pAmp, resB12*pAmp, resB13*pAmp ].scramble;
-
-		//For Stereo or Multichannel
-		//outArrayA1 = outArrayA.copyRange(0, (outArrayA.size/2).asInteger);
-		//outArrayA2 = outArrayA.copyRange((outArrayA.size/2).asInteger, outArray.size);
-		//outArrayA1 = Mix.ar(outArrayA1);
-		//outArrayA2 = Mix.ar(outArrayA2);
-
-		//Mixes resonators to a mono channel
-		outArrayA = Mix.ar(outArrayA);
-
-		ltdOutput = Limiter.ar(outArrayA, 0.98, 0.01);
-		ltdOutput = ltdOutput*masteramp;
-
-		rms = Amplitude.kr(ltdOutput).ampdb.linlin(-80.0, 0.0, 0.0, 1.0);
-		Out.kr(kbs, rms); //send rms amplitude measure to a control bus
-
-		Out.ar(obs, ltdOutput);
-
-		}, metadata
-	).load,
-
-	(),
-	//Dictionary of presets that I enter manually, for clarity and persistance:
-	//Each preset entry is another dictionary containing all arg names
-	// as keys with arg value as data
-	(
-		\default: (
-			masteramp:0.5,
-			inamp:1.0,
-			fund:200,
-			firstPartial:2,
-			bank2MidiOffset:0.25,
-			spread:0.33,
-			ringL1:7.75,
-			ringL2:9.5,
-			inputLen:1,
-			t_tr:0
-		)
-	)
-];
-
-q[\addsyndef].value(\petalsOfResonance);
-
-q[\addsynthdefargsSpec].value(\petalsOfResonance, \masteramp, 0.0, 1.0, \lin);
-q[\addsynthdefargsSpec].value(\petalsOfResonance, \inamp, 0.0, 7.0, \lin);
-q[\addsynthdefargsSpec].value(\petalsOfResonance, \fund, 20.0, 20000.0, \exp);
-q[\addsynthdefargsSpec].value(\petalsOfResonance, \firstPartial, 1.0, 99.0, \lin); //first partial to make a filter, eg. if fund is 50 and firstPartial is 5, the filters will be at 250, 300, 350, etc.
-q[\addsynthdefargsSpec].value(\petalsOfResonance, \bank2MidiOffset, -36.0, 36.0, \lin); //tuning offset for second bank of resonators in midi note values
-q[\addsynthdefargsSpec].value(\petalsOfResonance, \spread, 0.0, 3.0, \lin); //?
-q[\addsynthdefargsSpec].value(\petalsOfResonance, \ringL1, 0.0, 60.0, \lin); //lower end of ring range in seconds. synthdef will choose randomly between ringL1 and ringL2
-q[\addsynthdefargsSpec].value(\petalsOfResonance, \ringL2, 0.0, 60.0, \lin); //higher end of ring range in seconds.
-q[\addsynthdefargsSpec].value(\petalsOfResonance, \inputLen, 0.0, 60.0, \lin); // controls duration of envelope on input
-q[\addsynthdefargsSpec].value(\petalsOfResonance, \t_tr, 0.0, 1.0, \lin); //trigger for input envelope
 
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
