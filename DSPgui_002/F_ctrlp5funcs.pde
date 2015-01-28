@@ -86,7 +86,7 @@ void controlEvent(ControlEvent e) {
   }
   //
   else if (e.isController()) {
-    println("event from controller : "+e.getController().getValue()+" from "+e.getController());
+   // println("event from controller : "+e.getController().getValue()+" from "+e.getController());
   }
 }
 

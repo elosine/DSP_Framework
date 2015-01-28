@@ -18,6 +18,17 @@ void cp5gui() {
   source_dd.addItem("mic:3", 2);
   source_dd.addItem("mic:4", 3);
 
+  //Source GUI Button
+  cp5.addButton("sourcegui")
+    .setValue(0)
+      .setSize(27, 17)
+        .setPosition(123, 12)
+        .setCaptionLabel("GUI")
+        .setColorBackground(clr.get("sunshine"))
+        .setColorCaptionLabel(clr.get("black"))
+          .updateSize()
+            ;
+
   // DSP 1
   dsp1_dd = cp5.addDropdownList("dsp1")
     .setPosition(20, 150)
@@ -62,14 +73,22 @@ void mkflm(int ix, String lbl) {
     // Source Level Meter
     flmset.mkinst(ix, 70, 70, 35, lbl);
     break;
-    case 1:
-   // DSP1 Level Meter
-  flmset.mkinst(ix, 70, 190, 35, lbl);
-  break;
+  case 1:
+    // DSP1 Level Meter
+    flmset.mkinst(ix, 70, 190, 35, lbl);
+    break;
   case 99:
     // Out Level Meter
     flmset.mkinst(ix, 70, height-60, 35, lbl);
     break;
   }
+}
+
+//Button Functions
+public void sourcegui(int val) {
+String[] s1 = split(source_dd.getCaptionLabel().getText(), ":");
+String s2 = s1[0]+s1[1];
+println(s2);
+meosc.send("/mkautogui", new Object[]{s2}, sc);
 }
 

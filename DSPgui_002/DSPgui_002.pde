@@ -25,6 +25,8 @@ void setup() {
   cp5 = new ControlP5(this);
   ControlFont font = new ControlFont(liGothicMesource_dd4);
   cp5.setControlFont(font);
+  
+
 
   meosc = new OscP5(this, myport);
   sc = new NetAddress("127.0.0.1", 57120);
@@ -54,6 +56,7 @@ void draw() {
 
 
 void mousePressed() {
+  //println(source_dd.getCaptionLabel().getText());
 }
 
 
