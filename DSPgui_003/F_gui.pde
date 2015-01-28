@@ -13,10 +13,11 @@ void cp5gui() {
   source_dd.captionLabel().style().marginTop = 0;
   source_dd.captionLabel().style().marginLeft = 3;
 
-  source_dd.addItem("mic:1", 0);
-  source_dd.addItem("mic:2", 1);
-  source_dd.addItem("mic:3", 2);
-  source_dd.addItem("mic:4", 3);
+  source_dd.addItem("SOURCE", 0);
+  source_dd.addItem("mic:1", 1);
+  source_dd.addItem("mic:2", 2);
+  source_dd.addItem("mic:3", 3);
+  source_dd.addItem("mic:4", 4);
 
   //Source GUI Button
   cp5.addButton("sourcegui")
@@ -42,8 +43,9 @@ void cp5gui() {
   dsp1_dd.captionLabel().style().marginTop = 0;
   dsp1_dd.captionLabel().style().marginLeft = 3;
 
+  dsp1_dd.addItem("DSP1", 0);
   for (int i=0; i<dspnames.length; i++) {
-    dsp1_dd.addItem(dspnames[i], i);
+    dsp1_dd.addItem(dspnames[i], i+1);
   }
 
   // Out DropdownList
@@ -60,10 +62,11 @@ void cp5gui() {
   out_dd.captionLabel().style().marginTop = 0;
   out_dd.captionLabel().style().marginLeft = 3;
 
-  out_dd.addItem("out:1", 0);
-  out_dd.addItem("out:2", 1);
-  out_dd.addItem("out:3", 2);
-  out_dd.addItem("out:4", 3);
+  out_dd.addItem("OUT", 0);
+  out_dd.addItem("out:1", 1);
+  out_dd.addItem("out:2", 2);
+  out_dd.addItem("out:3", 3);
+  out_dd.addItem("out:4", 4);
 }
 
 void mkflm(int ix, String lbl) {
