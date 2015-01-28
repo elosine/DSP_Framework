@@ -17,7 +17,25 @@ void cp5gui() {
   source_dd.addItem("mic:2", 1);
   source_dd.addItem("mic:3", 2);
   source_dd.addItem("mic:4", 3);
-  
+
+  // DSP 1
+  dsp1_dd = cp5.addDropdownList("dsp1")
+    .setPosition(20, 150)
+      .setSize(100, 200)
+        .setItemHeight(17)
+          .setBarHeight(17)
+            .toUpperCase(false)
+              .setColorBackground(clr.get("dodgerblue"));
+  dsp1_dd.captionLabel()
+    .set("DSP1")
+      .toUpperCase(false);
+  dsp1_dd.captionLabel().style().marginTop = 0;
+  dsp1_dd.captionLabel().style().marginLeft = 3;
+
+  for (int i=0; i<dspnames.length; i++) {
+    dsp1_dd.addItem(dspnames[i], i);
+  }
+
   // Out DropdownList
   out_dd = cp5.addDropdownList("outs")
     .setPosition(20, height-100)
@@ -36,19 +54,22 @@ void cp5gui() {
   out_dd.addItem("out:2", 1);
   out_dd.addItem("out:3", 2);
   out_dd.addItem("out:4", 3);
-
 }
 
-void mkflm(int ix, String lbl){
-  switch(ix){
-    case 0:
-   // Source Level Meter
-  flmset.mkinst(ix, 70, 70, 35, lbl);
+void mkflm(int ix, String lbl) {
+  switch(ix) {
+  case 0:
+    // Source Level Meter
+    flmset.mkinst(ix, 70, 70, 35, lbl);
+    break;
+    case 1:
+   // DSP1 Level Meter
+  flmset.mkinst(ix, 70, 190, 35, lbl);
   break;
-    case 99:
-   // Source Level Meter
-  flmset.mkinst(ix, 70, height-60, 35, lbl);
-  break;
+  case 99:
+    // Out Level Meter
+    flmset.mkinst(ix, 70, height-60, 35, lbl);
+    break;
   }
 }
 

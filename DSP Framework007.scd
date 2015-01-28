@@ -14,6 +14,7 @@ q = ();
   //////////////  q[\synthdefs] ///////////////////
  /////////////////////////////////////////////////
 q[\synthdefs] = ();
+q[\dspnames] = Array.newClear(0);
 // q[\synthdefs] is a dictionary
 // Each entry contains a dictionary indexed by the synthdef name
 
@@ -22,7 +23,7 @@ q[\synthdefs] = ();
  /////////////////////////////////////////////////
 //function to pull control names and add to dictionary
 q[\addsynthdefFunk] = {
-	arg syndefname;
+	arg syndefname, type;
 	var get, ctlnames, specs, warp;
 	syndefname = syndefname.asSymbol; //just a percausion probably redundant internally
 	q[\synthdefs][syndefname] = ();
@@ -36,6 +37,7 @@ q[\addsynthdefFunk] = {
 	q[\synthdefs][syndefname][\defaults] = ();
 	q[\synthdefs][syndefname][\specs] = ();
 	q[\synthdefs][syndefname][\presets] = ();
+	q[\synthdefs][syndefname][\type] = type;
 	//uses controlNames to make a dictionary \defaults with argname/defaultvalue dictionaries
 	get.[syndefname].controls.do{|it ix| q[\synthdefs][syndefname][\defaults][it.name]= it.defaultValue};
 	//Creates a spec for each arg with dummy \lo, \hi, and \warp values
@@ -48,8 +50,23 @@ q[\addsynthdefFunk] = {
 			\default:specs[it].default,
 			\units:specs[it].units
 		);
-	}
+	};
+	//updates the array under q[\dspnames] to add the names of any dsp
+	q[\synthdefs].do{|it ix| if( (it[\type] > 0) && (it[\type] < 99), {q[\dspnames] = q[\dspnames].add(syndefname)})};
 };
+
+    ////////////////////////////////////////////////////////////
+   /////////  q[\getdspnamesDef]
+  /////////  OSCmsg: /getdspnames()
+ /////////   Returns to Requester: /dspnames (single string of all dsp synthdef names delimited by #)
+/////////////////////////////////////////////////////////////
+q[\getdspnamesDef] = OSCdef(\getdspnames,{
+	arg msg;
+	var argsStr="", mailtoadr;
+	mailtoadr = NetAddr(msg[1].asString, msg[2].asInteger);
+	q[\dspnames].do{|it ix| if(ix==0, {argsStr = it}, {argsStr="#"++argsStr})};
+	mailtoadr.sendMsg("/dspnames", argsStr);
+}, "/getdspnames");
 
     ////////////////////////////////////////////////////////////
    /////////  q[\getsynthdefargsDef]
@@ -104,20 +121,40 @@ q[\getsynthdefspecDef] = OSCdef(\getsdspec,{
 }, "/getsdspec");
 
      ///////////////////////////////////////////////////////////////////////////////////////////
-    /////////  q[\getpresetsDef]
+    /////////  q[\setpresetDef]
    ////////////////////////////////////////////////////////////////////////////////////////////
-  /////////  OSCmsg: /getpresets(synthdef name, preset name)
- /////////   Returns to Requester: /preset(synthdef name, preset name, arg/value pairs)
+  /////////  OSCmsg: /setpreset(synth dictionary name, preset name)
+ /////////
 /////////////////////////////////////////////////////////////////////////////////////////////
-q[\getsynthdefargsdefaultDef] = OSCdef(\getsdargdefault,{
-	arg msg, time, addr;
-	var mailtoadr, val, argname;
-	mailtoadr = addr;
-	argname = msg[2].asSymbol;
-	val = q[\synthdefs][msg[1].asSymbol][\defaults][argname];
-	mailtoadr.sendMsg("/sdargdefault/"++argname, val);
-}, "/getsdargdefault");
+q[\setpresetDef] = OSCdef(\setpreset,{
+	arg msg;
+	var syndictname, autogui, sdname, presetname, psdict;
+	presetname = msg[2].asSymbol;
+	syndictname = msg[1].asSymbol;
+	autogui = q[syndictname][5];
+	sdname = q[syndictname][4].defName.asSymbol;
+	q[\synthdefs][sdname][\presets].put(presetname, ());
+	psdict = q[\synthdefs][sdname][\presets][presetname];
+		//autogui.guiArr.do{|it ix| {psdict[it[4].string].postln }.defer};
+autogui.guiArr.do{|it ix| {psdict[it[4].string.asSymbol] = it[3].value}.defer};
+}, "/setpreset");
 
+
+
+     ///////////////////////////////////////////////////////////////////////////////////////////
+    /////////  q[\mkautoguiDef]
+   ////////////////////////////////////////////////////////////////////////////////////////////
+  /////////  OSCmsg: /mkautogui(synth dictionary name)
+ /////////
+/////////////////////////////////////////////////////////////////////////////////////////////
+q[\mkautoguiDef] = OSCdef( \mkautogui, { |msg|
+	var dictname, sdname, synth, ag;
+	dictname = msg[1].asSymbol;
+	synth = q[dictname][4];
+	sdname = synth.defName;
+	{q[dictname] = q[dictname].add( SynthDefAutogui(name:sdname, aSynth:synth, freeOnClose:false) )}.defer
+},
+	"/mkautogui");
 
 
 //Create 3 Groups: ins from soundcard, DSP,  and outs to soundcard
@@ -159,7 +196,6 @@ q[\mkaudioindef] = OSCdef(\mkaudioin,{ |msg|
 		q[\g0],
 		Synth(\audioin_mono, [\ibs, ibs, \obs, obs, \kbs, kbs], q[\g0]), //synth to take audio in and route to private audio bus
 	];
-	q[msg[1].asSymbol].postln;
 }, "/mkaudioin");
 
 /////////////////////////////////////////////////////////
@@ -228,30 +264,67 @@ q[\routedef] = OSCdef(\route, { |msg| msg.postln; q[msg[2].asSymbol][4].set(\ibs
 q[\unroutedef] = OSCdef(\unroute, { |msg| q[msg[1].asSymbol][4].set(\ibs, nil) }, "/unroute");
 
 
+//MAKE DSP
+//msg[1] dictionary name
+//msg[2] group name
+//msg[3] synth name
+//msg[4] dictionary name of source
+//msg[5].. list of args-value pairs
+q[\mkdspdef_m] = OSCdef(\mkdsp_m, {|msg|
+	var argsvals = msg.copyRange(5, msg.size);
+	var ibs = q[ msg[4].asSymbol ][1];
+	var obs = Bus.audio(s);
+	var kbs = Bus.control(s);
+	var group = q[ ("g"++msg[2]).asSymbol ];
+	argsvals.do{|it, ix| if(ix.even, {argsvals[ix]=it.asSymbol}, {argsvals[ix]=it.asFloat})};
+	argsvals = argsvals++[\obs, obs, \kbs, kbs, \ibs, ibs];
+	q[msg[1].asSymbol] = [
+		msg[4].asSymbol,
+		obs,
+		kbs,
+		group,
+		Synth(msg[3].asSymbol, argsvals, group);
+	];
+}, "/mkdsp_m");
+
 
     ///////////////////////////////////////////
    ////                                  /////
   ////       REGISTER SYNTH DEFS        /////
  ////                                  /////
 ///////////////////////////////////////////
-q[\addsynthdefFunk].value(\audioin_mono);
-q[\addsynthdefFunk].value(\audioOut_mono);
+//Second argument is for type: 0=source, 99=out, 1-98=dsp,etc.
+q[\addsynthdefFunk].value(\audioin_mono, 0);
+q[\addsynthdefFunk].value(\audioOut_mono, 99);
+q[\addsynthdefFunk].value(\petalsOfResonance, 1);
 
 )
-q[\mic1][2].getnSynchronous
+
+q[\mic1][5].guiArr
 
 //RESUME HERE//////
+//make a button in processing to get auto gui
+a.sendMsg("/mkautogui", "mic1"); // /mkaudioin, name of operator, in channel
+a.sendMsg("/mkautogui", "dsp1"); // /mkaudioin, name of operator, in channel
+//recall presets from processing
+a.sendMsg("/setpreset", "dsp1", "testeroni"); // /mkaudioin, name of operator, in channel
+a.sendMsg("/setpreset", "dsp1", "bell_y02"); // /mkaudioin, name of operator, in channel
+//MAKE PERSISTANCE AND PRESET RECALL AND SET SYNTH
+a.sendMsg("/setpreset", "mic1", "testeroni");
+q[\synthdefs][\petalsOfResonance][\presets][\bell_y02].writeArchive("/Volumes/Ute/SuperCollider Standalone/bell_y02.txt");
+f = Object.readArchive("/Volumes/Ute/SuperCollider Standalone/bell_y02.txt")
+f[\ringL1]
+
 //Make an audio in and get feedback
 a = NetAddr("127.0.0.1", 57120);
 s.meter;
 s.queryAllNodes;
-a.sendMsg("/mkaudioin", "mic1", 0); // /mkaudioin, name of operator, in channel
+a.sendMsg("/mkautogui", "mic1"); // /mkaudioin, name of operator, in channel
 n = NetAddr("localhost", 57120);
-OSCdef(\teet, {|msg| msg.postln }, "/sdspec/petalsOfResonance/kbs");
-n.sendMsg("/getsdspec", \petalsOfResonance, \kbs);
+OSCdef(\teet, {|msg| msg.postln }, "/dspnames");
+a.sendMsg("/getdspnames");
 
-
-
+e = SynthDesc.read(SynthDef.synthDefDir ++ "petalsOfResonance.scsyndef");
 
 
 /////////////////////////////////////////////////////////
@@ -372,7 +445,7 @@ Archive.global.put(\DSPframework, q);
 a = NetAddr("127.0.0.1", 57120);
 s.meter;
 s.queryAllNodes;
-a.sendMsg("/mkaudioin", "mic1", 0); // /mkaudioin, name of operator, in channel
+a.sendMsg("/mkautogui", "mic1"); // /mkaudioin, name of operator, in channel
 a.sendMsg("/mkaudioOut_m", "out1", 0); // /mkaudioOut_m, name of operator, out channel
 a.sendMsg("/route", "mic1", "out1"); // /route, name of in operator, name of out operator
 a.sendMsg("/unroute", "out1"); // /unroute, name of out operator
