@@ -93,8 +93,8 @@ q[\setpresetDef] = OSCdef(\setpreset,{
 	var syndictname, autogui, sdname, presetname, psdict;
 	presetname = msg[2].asSymbol;
 	syndictname = msg[1].asSymbol;
-	autogui = q[syndictname][5];
-	sdname = q[syndictname][4].defName.asSymbol;
+	autogui = q[\synths][syndictname][5];
+	sdname = q[\synths][syndictname][4].defName.asSymbol;
 	q[\synthdefs][sdname][\presets].put(presetname, ());
 	psdict = q[\synthdefs][sdname][\presets][presetname];
 	autogui.guiArr.do{|it ix| {psdict[it[4].string.asSymbol] = it[3].value}.defer};
@@ -108,10 +108,13 @@ q[\setpresetDef] = OSCdef(\setpreset,{
 q[\mkautoguiDef] = OSCdef( \mkautogui, { |msg|
 	var dictname, sdname, synth, ag;
 	dictname = msg[1].asSymbol;
-	if(q.includesKey(dictname),{
-		synth = q[dictname][4];
+	if(q[\synths].includesKey(dictname),{
+		synth = q[\synths][dictname][4];
 		sdname = synth.defName;
-		{q[dictname] = q[dictname].add( SynthDefAutogui(name:sdname, aSynth:synth, freeOnClose:false) )}.defer
+		{
+			q[\synths][dictname] = q[\synths][dictname].add( SynthDefAutogui(name:sdname, aSynth:synth, freeOnClose:false) );
+			q[\synths][dictname][5].startMonitor; //Start the autogui auto update
+		}.defer
 	})
 	},
 	"/mkautogui");
@@ -130,11 +133,11 @@ q[\mkautoguiDef] = OSCdef( \mkautogui, { |msg|
 q[\mkaudioinDef] = OSCdef(\mkaudioin,{ |msg|
 	var ibs, obs, kbs, name;
 	name = msg[1].asSymbol;
-	if(q.includesKey(name) == false, {
+	if(q[\synths].includesKey(name) == false, {
 		ibs = msg[2].asInteger;
 		obs = Bus.audio(s, 1); //private audio bus for sound in
 		kbs = Bus.control(s, 1); //control bus for amplitude measurement/metering
-		q[name] = [
+		q[\synths][name] = [
 			ibs,
 			obs,
 			kbs,
@@ -151,11 +154,11 @@ q[\mkaudioinDef] = OSCdef(\mkaudioin,{ |msg|
 q[\mkaudioOutDef_m] = OSCdef(\mkaudioOut_m,{ |msg|
 	var ibs, obs, kbs, name;
 	name = msg[1].asSymbol;
-	if(q.includesKey(name) == false, {
+	if(q[\synths].includesKey(name) == false, {
 	ibs = 999;
 	obs = msg[2].asInteger;
 	kbs = Bus.control(s, 1); //control bus for amplitude measurement/metering
-	q[name] = [
+	q[\synths][name] = [
 		ibs,
 		obs,
 		kbs,
@@ -167,11 +170,11 @@ q[\mkaudioOutDef_m] = OSCdef(\mkaudioOut_m,{ |msg|
 q[\mkaudioOutDef_s] = OSCdef(\mkaudioOut_s,{ |msg|
 	var ibs, obs, kbs, name;
 	name = msg[1].asSymbol;
-	if(q.includesKey(name) == false, {
+	if(q[\synths].includesKey(name) == false, {
 	ibs = 999;
 	obs = msg[2].asInteger;
 	kbs = Bus.control(s, 1); //control bus for amplitude measurement/metering
-	q[name] = [
+	q[\synths][name] = [
 		ibs,
 		obs,
 		kbs,
@@ -188,8 +191,8 @@ q[\mkaudioOutDef_s] = OSCdef(\mkaudioOut_s,{ |msg|
 q[\getrmsDef] = OSCdef(\getrms, {|msg|
 	var rms, replyadr, synthname, replyname;
 	synthname = msg[1].asSymbol;
-	if(q.includesKey(synthname), {
-	rms = (q[synthname][2].getnSynchronous[0]);
+	if(q[\synths].includesKey(synthname), {
+	rms = (q[\synths][synthname][2].getnSynchronous[0]);
 	replyadr = NetAddr(msg[2].asString, msg[3].asInteger);
 	replyadr.sendMsg("/rms", synthname, rms)
 	})
@@ -202,12 +205,12 @@ q[\getrmsDef] = OSCdef(\getrms, {|msg|
  //////       OSCmsg: /unroute(synth dict name of dest)                             ////
 ///////////////////////////////////////////////////////////////////////////////////////
 q[\routeDef] = OSCdef(\route, { |msg|
-	if( (q.includesKey(msg[2].asSymbol)) && (q.includesKey(msg[1].asSymbol)), {
-		q[msg[2].asSymbol][4].set(\ibs, q[msg[1].asSymbol][1])
+	if( (q[\synths].includesKey(msg[2].asSymbol)) && (q[\synths].includesKey(msg[1].asSymbol)), {
+		q[\synths][msg[2].asSymbol][4].set(\ibs, q[\synths][msg[1].asSymbol][1])
 })}, "/route");
 q[\unrouteDef] = OSCdef(\unroute, { |msg|
-	if(q.includesKey(msg[1].asSymbol), {
-	q[msg[1].asSymbol][4].set(\ibs, nil)
+	if(q[\synths].includesKey(msg[1].asSymbol), {
+	q[\synths][msg[1].asSymbol][4].set(\ibs, nil)
 })}, "/unroute");
 
      ///////////////////////////////////////////////////////////////////////////////
@@ -218,18 +221,20 @@ q[\unrouteDef] = OSCdef(\unroute, { |msg|
 ///////////////////////////////////////////////////////////////////////////////
 q[\mkdspDef_m] = OSCdef(\mkdsp_m, {|msg|
 	var argsvals, ibs, obs, kbs, group, dictname, sourcename, sdname;
+	msg.postln;
 	dictname = msg[1].asSymbol;
 	sourcename = msg[4].asSymbol;
 	sdname = msg[3].asSymbol;
-	if( (q.includesKey(dictname) == false) && (q.includesKey(sourcename)) && (q[\dspnames].includes(sdname)),{
+	if( (q[\synths].includesKey(dictname) == false) && (q[\synths].includesKey(sourcename)) && (q[\dspnames].includes(sdname)),{
+		msg.postln;
 	argsvals = msg.copyRange(5, msg.size);
-	ibs = q[sourcename][1];
+	ibs = q[\synths][sourcename][1];
 	obs = Bus.audio(s);
 	kbs = Bus.control(s);
 	group = q[ ("g"++msg[2]).asSymbol ];
 	argsvals.do{|it, ix| if(ix.even, {argsvals[ix]=it.asSymbol}, {argsvals[ix]=it.asFloat})};
 	argsvals = argsvals++[\obs, obs, \kbs, kbs, \ibs, ibs];
-	q[dictname] = [
+	q[\synths][dictname] = [
 		ibs,
 		obs,
 		kbs,
@@ -246,14 +251,30 @@ q[\mkdspDef_m] = OSCdef(\mkdsp_m, {|msg|
 q[\freesynthDef] = OSCdef(\freesynth, {|msg|
 	var name;
 	name = msg[1].asSymbol;
-	if(q.includesKey(name),{
-		q[name][4].free;
-		q[name][2].free;
-		q[name][1].free;
-		q[name][0].free;
-		q.removeAt(name);
+	if(q[\synths].includesKey(name),{
+		if(q[\synths][name][5] != nil,{
+		q[\synths][name][5].task.stop;
+		});
+		q[\synths][name][4].free;
+		q[\synths][name][2].free;
+		q[\synths][name][1].free;
+		q[\synths][name][0].free;
+		q[\synths].removeAt(name);
 	})
 }, "/freesynth");
+
+q[\freeallDef] = OSCdef(\freeall, {|msg|
+	q[\synths].do{|it ix|
+		if(it[5] != nil,{
+		it[5].task.stop;
+		});
+		it[4].free;
+		it[2].free;
+		it[1].free;
+		it[0].free;
+	};
+	q[\synths] = ();
+}, "/freeall");
 
     ///////////////////////////////////////////
    ////                                  /////
@@ -268,7 +289,18 @@ q[\addsynthdefFunk].value(\ringmod, 1);
 
 )
 
+/*
+figure out what is wrong when you remove a dsp and try to put it back
+figure out the chain and routing if you get rid of a dsp you should be able to
+bypass that routing
+get ring mod working and signals
+persistance and presets
+*/
+
+
 //RESUME HERE//////
+a = NetAddr("localhost", 57120);
+a.sendMsg("/freeall");
 //PRESETS//PERSISTANCE//
 //recall presets from processing
 a.sendMsg("/setpreset", "dsp1", "testeroni"); // /mkaudioin, name of operator, in channel
@@ -280,4 +312,4 @@ f = Object.readArchive("/Volumes/Ute/SuperCollider Standalone/bell_y02.txt")
 f[\ringL1]
 
 s.queryAllNodes
-q
+q[\synths]

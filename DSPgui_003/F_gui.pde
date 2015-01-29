@@ -48,6 +48,16 @@ void cp5gui() {
     dsp1_dd.addItem(dspnames[i], i+1);
   }
 
+  //DSP1 GUI Button
+  cp5.addButton("dsp1gui")
+      .setSize(27, 17)
+        .setPosition(123, 132)
+        .setCaptionLabel("GUI")
+        .setColorBackground(clr.get("sunshine"))
+        .setColorCaptionLabel(clr.get("black"))
+          .updateSize()
+            ;
+
   // Out DropdownList
   out_dd = cp5.addDropdownList("outs")
     .setPosition(20, height-100)
@@ -87,8 +97,12 @@ void mkflm(int ix, String lbl) {
 }
 
 //GUI Functions
+//BUTTONS
 public void sourcegui(int val) {
-meosc.send("/mkautogui", new Object[]{dspbank[0]}, sc);
+  if(dspbank[0]!=null) meosc.send("/mkautogui", new Object[]{dspbank[0]}, sc);
+}
+public void dsp1gui() {
+  if(dspbank[1]!=null) meosc.send("/mkautogui", new Object[]{"dsp1"}, sc);
 }
 
 

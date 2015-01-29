@@ -10,7 +10,7 @@ void controlEvent(ControlEvent e) {
         String name = e.getGroup().getCaptionLabel().getText();
         String[] splitname = split(name, ":");
         //Get rid of exsisting synth etc. in sc
-        meosc.send("/freesynth", new Object[] {dspbank[0]}, sc);
+        if(dspbank[0]!=null) meosc.send("/freesynth", new Object[] {dspbank[0]}, sc);
         //All MICS
         if (splitname[0].equals("mic")) {
           int micnum = int(splitname[1]);
@@ -25,6 +25,7 @@ void controlEvent(ControlEvent e) {
       }
       //
       else{
+        println("fds");
         meosc.send("/freesynth", new Object[] {dspbank[0]}, sc);
         flmset.rmv(0);
         dspbank[0] = null;
@@ -35,17 +36,18 @@ void controlEvent(ControlEvent e) {
     if (e.getGroup() == dsp1_dd) {
       if(int(e.getGroup().getValue())!=0){
         //Refresh List of SynthDefs from SC
-        meosc.send( "/getdspnames", new Object[] {meosc.ip(), myport}, sc);
+      //  meosc.send( "/getdspnames", new Object[] {meosc.ip(), myport}, sc);
+        String sourceloc = dspbank[0];
         String name = e.getGroup().getCaptionLabel().getText();
         //Get rid of exsisting synth etc. in sc
-        meosc.send("/freesynth", new Object[] {dspbank[1]}, sc);
+        if(dspbank[1]!=null) meosc.send("/freesynth", new Object[]{"dsp1"}, sc);
         //Petals of Resonance
         if (name.equals("petalsOfResonance")) {
           meosc.send("/mkdsp_m", new Object[] {
           "dsp1", //dictionary name
           1, //group number
           "petalsOfResonance", //synthdef name
-          dspbank[0] //dictionary name of source - in dspbank[0]
+          sourceloc //dictionary name of source - in dspbank[0]
           }
           , sc);
         }
@@ -55,11 +57,11 @@ void controlEvent(ControlEvent e) {
         }
         dspbank[1] = "dsp1";
         //make funky level meter
-        if(!flmset.verify(1)) mkflm(1, "dsp1"); 
+       if(!flmset.verify(1)) mkflm(1, "dsp1"); 
       }
       //
       else{
-        meosc.send("/freesynth", new Object[] {dspbank[1]}, sc);
+        meosc.send("/freesynth", new Object[] {"dsp1"}, sc);
         flmset.rmv(1);
         dspbank[1] = null; 
       }
@@ -71,7 +73,7 @@ void controlEvent(ControlEvent e) {
         String name = e.getGroup().getCaptionLabel().getText();
         String[] splitname = split(name, ":");
         //Get rid of exsisting synth etc. in sc
-        meosc.send("/freesynth", new Object[] {dspbank[numbanks-1]}, sc);
+        if(dspbank[numbanks-1]!=null) meosc.send("/freesynth", new Object[] {dspbank[numbanks-1]}, sc);
         if (splitname[0].equals("out")) {
           int num = int(splitname[1]);
           String label = splitname[0]+splitname[1];
@@ -85,6 +87,7 @@ void controlEvent(ControlEvent e) {
           for (int i=dspbank.length-2; i>=0; i--) {
             if (dspbank[i]!=null) {
             meosc.send("/route", new Object[] {dspbank[i], label}, sc);
+            break;
             }
           }
         }

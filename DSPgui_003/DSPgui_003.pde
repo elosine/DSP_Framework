@@ -36,12 +36,10 @@ void setup() {
   meosc.plug(flmset, "aniSprite", "/rms");
 
   meosc.plug(this, "getdspnames", "/dspnames");
-  meosc.send( "/getdspnames", new Object[] {
-    meosc.ip(), myport
-  }
-  , sc);
 
   cp5gui();
+  
+  meosc.send( "/getdspnames", new Object[] {meosc.ip(), myport}, sc);
 }
 
 void draw() {
@@ -52,7 +50,11 @@ void draw() {
 }
 
 
-
+//TO RUN CODE ON EXIT
+void exit() {
+  meosc.send( "/freeall", new Object[] {}, sc);
+  super.exit();
+}
 
 
 void mousePressed() {
