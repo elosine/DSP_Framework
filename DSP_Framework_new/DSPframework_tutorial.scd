@@ -20,7 +20,6 @@ SynthDef(\guitarAmp, {
 	Out.ar(obs, dsp*amp*env);
 }).add;
 
-
 //CREATE A MANUAL WORKFLOW
 a = Synth(\ghole, [\gate, 1]); //Create an instance of the synth/effect
 a.set(\gate, 0); //off
