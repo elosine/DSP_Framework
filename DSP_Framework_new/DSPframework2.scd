@@ -15,7 +15,7 @@
 			//////////////////////////////////////
 
 			//Convolution Reverb
-			conv = EZConv(irpaths[0]);
+			conv = EZConv(irpaths[0].fullPath);
 
 			0.5.wait;
 
@@ -149,18 +149,8 @@ OSCdef( \init, {~init.value}, "/init" );
 OSCdef( \exit, {~exit.value}, "/exit" );
 )
 
-a = NetAddr("localhost", 57120);
-a.sendMsg("/init");
-a.sendMsg("/exit");
+~init.value
 
-
-
-
-
-
-
-
-//MAKE OSC DEF FOR IMPULSE REVERB
 //PLAY
 a = Synth(\convRev, [\sourcebuf, ~s1] );
 a.set(\gain, 1.0, \sourcegain, 2, \spd, -0.1);
@@ -178,9 +168,6 @@ a.free;
 ~cr.numChannels;
 ~cr.irSpectrum;
 )
-
-set up
-\convRev_live synthdef
 
 
 
