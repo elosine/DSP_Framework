@@ -1,4 +1,4 @@
-SynthDef( \ghole, {
+SynthDef( \gh, {
 	arg ibs=0, delayTime=2, damp=0, size=1, diff=0.707, feedback=0.9, modDepth=0.1, modFreq=2, obs=0, amp=1, atk = 0.01, decay=0, sus=1, rel=0.1, crv = -2, gate=0;
 	var source, dsp, env;
 	env = EnvGen.ar( Env.adsr(atk, decay, sus, rel, curve:crv), gate );
@@ -54,12 +54,15 @@ OSCdef(\killfx, {
 	q[name].free;
 }, "/killfx");
 
-n = NetAddr("localhost", 57120);
 
-n.sendMsg("/mkfx", \s1, \ghole, \gate, 1, \myarg, 22.456); //creates greyhole effect
-n.sendMsg("/fxtog", \s1, 0);  //toggles effect off
-n.sendMsg("/fxtog", \s1, 1); //toggles effect on
+//TRY IT FROM SC
+n = NetAddr("localhost", 57120);
+n.sendMsg("/mkfx", \s1, \gh, \gate, 1, \delayTime, 0.5, \decay, 0.4 ); //creates greyhole effect
+n.sendMsg("/togfx", \s1, 0);  //toggles effect off
+n.sendMsg("/togfx", \s1, 1); //toggles effect on
 n.sendMsg("/killfx", \s1); //kills effect
+
+//TRY IT FROM SOMEWHERE ELSE
 
 
 
