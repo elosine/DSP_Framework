@@ -1,10 +1,12 @@
 (
+var init, exit;
 //Initialization Sequence
-~init = {
-	var dict, impulses, irpaths, conv;
+init = {
+	var dict, impulses, irpaths;
 
 	//FOR CONVOLUTION REVERB
 	irpaths = PathName.new(String.scDir +/+ "sounds/impulses/").files;
+	~irconvs = Array.newClear(irpaths.size);
 
 	s.options.memSize = 245760; //increases server memory
 
@@ -15,7 +17,7 @@
 			//////////////////////////////////////
 
 			//Convolution Reverb
-			conv = EZConv(irpaths[0].fullPath);
+			irpaths.do{|it ix| ~irconvs[ix] = EZConv(it.fullPath); it.fullPath.postln};
 
 			0.5.wait;
 
@@ -24,9 +26,7 @@
 			//////////////////////////////////////
 
 			//INSPECT Convolution Reverb
-			conv.numChannels;
-			conv.irSpectrum;
-
+			~irconvs.do{|it| it.numChannels; it.irSpectrum};
 			0.5.wait;
 
 			//////////////////////////////////////
@@ -57,11 +57,11 @@
 			}).add;
 
 			SynthDef(\convrev_live, {
-				arg ibs=0, obs=0, amp=1, atk = 0.01, decay=0, sus=1, rel=0.1, crv = -2, gate=0, sourcegain=1;
+				arg ibs=0, obs=0, amp=1, atk = 0.01, decay=0, sus=1, rel=0.1, crv = -2, gate=0, sourcegain=1, irnum=0;
 				var source, dsp, env;
 				env = EnvGen.ar( Env.adsr(atk, decay, sus, rel, curve:crv), gate );
 				source = SoundIn.ar(ibs);
-				dsp = conv.ar(source*sourcegain, leak: 0.1);
+				dsp = ~irconvs[0].ar(source*sourcegain, leak: 0.1);
 				Out.ar(obs, dsp*amp*env);
 			}).add;
 
@@ -111,6 +111,7 @@
 			}, "/killfx");
 
 			//OSC def for Convolution Reverb
+			O
 
 			//////////////////////////////////////
 			5.postln;
@@ -122,37 +123,41 @@
 		}
 	};
 	s.meter;
+
+	//Exit Sequence
+	exit = {
+		fork{
+			1.postln;
+
+			0.1.wait;
+
+			2.postln;
+
+			0.1.wait;
+
+			3.postln;
+
+			0.1.wait;
+
+		}
+	};
+
 };
-
-//Exit Sequence
-~exit = {
-	fork{
-		1.postln;
-
-		0.1.wait;
-
-		2.postln;
-
-		0.1.wait;
-
-		3.postln;
-
-		0.1.wait;
-
-}};
-
 //Initialization OSCified
 //// Using this, you can initialize remotely
-OSCdef( \init, {~init.value}, "/init" );
+OSCdef( \init, {init.value}, "/init" );
 //Exit OSCified
 //// Using this, you can exit remotely
-OSCdef( \exit, {~exit.value}, "/exit" );
+OSCdef( \exit, {exit.value}, "/exit" );
+
 )
 
 ~init.value
+n = NetAddr("localhost", 57120);
+n.sendMsg(\init);
 
 //PLAY
-a = Synth(\convRev, [\sourcebuf, ~s1] );
+a = Synth(\convrev_live, [\gate, 1]);
 a.set(\gain, 1.0, \sourcegain, 2, \spd, -0.1);
 a.free;
 
@@ -169,6 +174,6 @@ a.free;
 ~cr.irSpectrum;
 )
 
-
+s.meter
 
 
