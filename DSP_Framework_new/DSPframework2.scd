@@ -2,8 +2,8 @@
 n = NetAddr("localhost", 57120);
 n.sendMsg(\init);
 ( //SoundPetal performance
-n.sendMsg(\mkfx, \pet1, \petalsOfResonance, \gate, 1, \inamp, 8.0, \ringL1, 13, \ringL2, 21, \fd, 113, \spread, 1.8, \bank2MidiOffset, 1.7, \firstPartial, 2, \obs,1, \re1, 7, \atk, 7);
-n.sendMsg(\mkfx, \pet1, \petalsOfResonance, \gate, 1, \inamp, 8.0, \ringL1, 13, \ringL2, 21, \fund, 80, \spread, 0.47, \bank2MidiOffset, 0.83, \firstPartial, 1, \obs,1, \re1, 7, \atk, 7);
+n.sendMsg(\mkfx, \pet1, \petalsOfResonance, \gate, 1, \inamp, 7.0, \ringL1, 13, \ringL2, 21, \fd, 113, \spread, 1.8, \bank2MidiOffset, 1.7, \firstPartial, 2, \obs,0, \re1, 7, \atk, 7);
+n.sendMsg(\mkfx, \pet2, \petalsOfResonance, \gate, 1, \inamp, 7.0, \ringL1, 13, \ringL2, 21, \fund, 80, \spread, 0.47, \bank2MidiOffset, 0.83, \firstPartial, 1, \obs,0, \re1, 7, \atk, 7);
 )
 n.sendMsg(\togfx, \pet1, 0); n.sendMsg(\togfx, \pet2, 0);
 (
