@@ -34,19 +34,6 @@ s.waitForBoot{
 		Out.ar(obs, dsp*amp*env);
 	}).add;
 
-	SynthDef( \ring, {
-		arg ibs=0, obs=0, amp=1, atk = 0.01, decay=0, sus=1, rel=0.1, crv = -2, gate=0,
-		rate=0.5, moddecay = 0.2, modfreqlo=200, modfreqhi=1000;
-		var source, dsp, env, mod;
-		mod = SinOsc.ar( SinOsc.kr(rate).range(modfreqlo, modfreqhi) );
-		env = EnvGen.ar( Env.adsr(atk, decay, sus, rel, curve:crv), gate );
-		source = SoundIn.ar(ibs);
-		dsp = Ringz.ar(source, mod, moddecay);
-		Out.ar(obs, dsp*amp*env);
-	}).add;
-
-
-
 	q = ();
 	//Make effect by OSC
 	OSCdef(\mkfx, {
@@ -88,6 +75,16 @@ s.waitForBoot{
 		name = msg[1].asSymbol;
 		q[name].free;
 	}, "/killfx");
+
+	//Map to Control Bus
+	OSCdef(\maparg, {
+		arg msg;
+		var name, argname, busnum;
+		name = msg[1].asSymbol;
+		argname = msg[2].asSymbol;
+		busnum = msg[3].asInteger;
+		q[name].map(argname, ~kbs[busnum]);
+	}, "/maparg");
 
 }
 )
