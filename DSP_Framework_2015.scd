@@ -1,48 +1,75 @@
-~nb = 7;
-~g = Array.newClear(~nb);
-~nb.do{|ix| if(ix==0,{~g[ix]=Group.new(s)}, {~g[ix]=Group.after(ix-1)})};
-~ab = {Bus.audio(s)}!~nb;
-~cb = {Bus.control(s, 4)}!~nb;
+/*
+2 ins - live in
+make a separate processor for sample player/recorder
+1 effects bus
+pass thru synthdef
+*/
+(
+~g0 = Group.new(s);
+~g1 = Group.after(~g0);
+~ab = Bus.audio(s);
+//buffer for freeze
+~fb = Buffer.alloc(s, s.sampleRate*2);
+~eb = SoundFile.collectIntoBuffers("/Volumes/Ute/Freeze/grainEnv/" ++ "*");
 
-//Inputs SynthDefs
 SynthDef(\micin, {
-	arg ibs=0, obs=0, atk=0.01, rel=0.1, crv= -3;
+	arg ibs=0, obs=0, atk=0.01, rel=0.1, crv= -3, gate=1;
 	var env, in;
 	env = EnvGen.ar(Env.asr(atk, 1, rel, crv), gate);
 	in = SoundIn.ar(ibs);
 	Out.ar(obs, in*env);
 }).add;
 
-//develop some killer dsp
+// DSP
+SynthDef(\amplify,{
+	arg ibs, obs=0, gate=1, amp=1;
+	var env;
+	env = EnvGen.ar(Env.asr(releaseTime:0.1),gate, doneAction:2);
+	Out.ar(obs, In.ar(ibs)*env*amp);
+}).add;
 
-(
-b = SoundFile.collectIntoBuffers("/Users/jyang/GitHub/DSP_Framework/samples/*");
+//ringmod
 SynthDef(\rm,{
-	arg buf, inamp=1, amp=1, mix=0.5, bend=1, lf1f=0.2;
-	var in, dfreq, hasFreq, damp, mod, rm, lf1;
-	in = PlayBuf.ar(2, buf, trigger:\t_tr.kr(1,0));
+	arg buf, ibs, obs=0, inamp=1, amp=1, mix=0.5, bend=1, lf1f=0.2, gate=1,
+	atk=0.01, rel=0.8, crv= -4;
+	var in, dfreq, hasFreq, damp, mod, rm, lf1, env;
+	env = EnvGen.ar(Env.asr(atk,1,rel,crv),gate, doneAction:2);
+	in = In.ar(ibs);
 	in = in*inamp;
 	# dfreq, hasFreq = Tartini.kr(in);
-	//freq.poll;
 	damp = Amplitude.kr(in);
-	//damp.poll;
 	lf1 = LFTri.kr(lf1f)*bend;
-	//mod = SinOsc.ar( (dfreq.cpsmidi+(bend*damp)).midicps )*damp;
 	mod = SinOsc.ar( (dfreq.cpsmidi+lf1).midicps )*damp;
 	rm = DiodeRingMod.ar(in, mod);
-	//rm = Mix.ar([in*(1.0-mix), mod*mix]);
-	Out.ar(0, rm*amp);
+	Out.ar(obs, rm*amp*env);
+}).add;
+
+//freeze
+
+SynthDef(\icy_live, {
+	arg ibs, obs=0,buf=0, envbuf = -1, pitchshift=1, winsz=0.8, overlaps=40, resettrig=0, startpos=0.0, endpos=1.0, rand=0.1, ratemin=1.0, ratemax=0.00001, indur=1, ingate=1, dur=5, rel=1.2, crv = -6;
+	var sig, ix, krate, in, writehead, whenv, durenv;
+	durenv = EnvGen.ar(Env.linen(0.01, dur, rel, curve: crv),1,doneAction:2);
+	writehead = Phasor.ar(0, BufRateScale.kr(buf), 0, BufFrames.kr(buf));
+	whenv = EnvGen.ar(Env.linen(0.0, indur, 0.0), ingate);
+	in = BufWr.ar(SoundIn.ar(ibs), buf, writehead*whenv);
+	krate = \rate.kr(1, 0.05).linlin(0.0, 1.0, ratemin, ratemax);
+	ix = Phasor.kr(resettrig, ((1.0/ControlRate.ir)/(BufFrames.kr(buf)/SampleRate.ir))*krate, startpos, endpos);
+	sig = Warp1.ar(1, buf, ix, pitchshift, winsz, envbuf, overlaps,rand);
+	Out.ar(obs, sig*durenv);
 }).add;
 )
-a = Synth(\rm, [\buf, b[0],\t_tr, 1, \inamp, 4, \mix, 0.6, \amp, 2, \bend, 1, \lf1f, 0.1]);
-a.set(\t_tr, 1, \inamp, 4, \mix, 0.6, \amp, 2, \bend, 1, \lf1f, 0.1);
-a.set(\buf, b[1], \t_tr, 1);
-a.set(\buf, b[2], \t_tr, 1);
-a.set(\buf, b[3], \t_tr, 1);
-a.set(\buf, b[4], \t_tr, 1);
-a.set(\buf, b[5], \t_tr, 1);
-a.set(\buf, b[6], \t_tr, 1);
-a.set(\buf, b[7], \t_tr, 1);
 
-Qitch
+//start live mic
+~m1 = Synth(\micin, [\obs, ~ab], ~g0);
+
+//amplify
+~amp = Synth(\amplify, [\ibs, ~ab], ~g1);
+~amp.set(\gate, 0); //amplify off
+//ringmod
+~rm = Synth(\rm, [ \ibs, ~ab, \bend, 5, \lf1f, 0.2, \inamp, 2, \rel, 0.8], ~g1);
+~rm.set(\gate, 0); //ringmod off
+//freeze
+~fz = Synth(\icy_live, [\buf, ~fb, \winsz, 0.6, \overlaps, 17, \rand, 0.2, \envbuf, ~eb[3], \dur, 4, \indur, 2, \rate, 0.97, \rel, 2, \crv, -6 ], ~g1);
+
 
