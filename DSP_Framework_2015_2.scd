@@ -61,21 +61,20 @@ SynthDef(\icy_live, {
 )
 
 //start live mic
-~m1 = Synth(\micin, [\obs, ~ab], ~g0);
 s.sendMsg(\s_new, \micin, 5000, 0, ~g0.nodeID, \obs, ~ab.index);
 //amplify
-~amp = Synth(\amplify, [\ibs, ~ab], ~g1);
 s.sendMsg(\s_new, \amplify, 5001, 0, ~g1.nodeID, \ibs, ~ab.index);
-~amp.set(\gate, 0); //amplify off
-s.sendMsg(\n_set, 5001, \gate, 0);
+s.sendMsg(\n_set, 5001, \gate, 0);//amplify off
 //ringmod
-~rm = Synth(\rm, [ \ibs, ~ab, \bend, 5, \lf1f, 0.2, \inamp, 2, \rel, 0.8], ~g1);
-~rm.set(\gate, 0); //ringmod off
+s.sendMsg(\s_new, \rm, 5002, 0, ~g1.nodeID, \ibs, ~ab.index, \bend, 5, \lf1f, 0.2, \inamp, 2, \rel, 0.8);
+s.sendMsg(\n_set, 5002, \gate, 0); //rm off
 //freeze
-~fz = Synth(\icy_live, [\buf, ~fb, \winsz, 0.6, \overlaps, 17, \rand, 0.2, \envbuf, ~eb[3], \dur, 4, \indur, 2, \rate, 0.97, \rel, 2, \crv, -6 ], ~g1);
+s.sendMsg(\s_new, \icy_live, 5003, 0, ~g1.nodeID, \buf, ~fb.bufnum, \winsz, 0.6, \overlaps, 17, \rand, 0.2, \envbuf, ~eb[3], \dur, 4, \indur, 2, \rate, 0.97, \rel, 2, \crv, -6 );
 
 
-s.sendMsg(\n_set, 5002, \gate, 0);
+
+
+
 
 
 
