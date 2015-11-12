@@ -16,7 +16,7 @@ void setup() {
 
   // FUNKY LEVEL METER /////////////////////////////////////////////
   flmset = new FunkyLMSet();
-  meOsc.plug(flmset, "aniSprite", "/rms");
+  meOsc.plug(flmset, "aniSprite", "/amp1");
 
   flmset.mkinst(0, 200, 200, 50, "mic1");
 }
@@ -27,10 +27,15 @@ void draw() {
   // ortho(-width/2, width/2, -height/2, height/2, -100, 100); 
   // theta = (frameCount/200.0)*TWO_PI;
   flmset.drw();
+  getamp();
 }
 
 void keyPressed(){
-  if(key=='a') flmset.aniSprite("mic1", random(-55.0, -4.0));
+  if(key=='a') flmset.aniSprite("Sig1", random(-55.0, -4.0));
+}
+
+void getamp(){
+  meOsc.send("/getamp", new Object[]{}, sc);
 }
 
 class FunkyLM {
@@ -159,16 +164,3 @@ class FunkyLMSet {
     }
   } //End Method
 } //end of class set class
-
-
-
-
-
-
-
-
-
-
-
-
-
