@@ -39,6 +39,11 @@ s.waitForBoot{
 			sig = BufRd.ar(1, buf, idx);
 			Out.ar(obs, sig*env);
 		}).add;
+		SynthDef(\setbus,{
+			arg bus;
+			var val = \val.kr(0.0, 0.08);
+			Out.kr(bus, val);
+		}).add;
 		////EFFECTS///
 		SynthDef(\amplify, {
 			arg ibs=0, obs=0, amp=1, gate=1;
@@ -46,6 +51,32 @@ s.waitForBoot{
 			env = EnvGen.ar(Env.asr(releaseTime:0.08), gate, doneAction:2);
 			sig = In.ar(ibs);
 			Out.ar(obs, sig*amp);
+		}).add;
+		SynthDef(\multitap, {
+			arg ibs = 0, obs=0, buf, panrate=3,
+			delaytimes = #[0.4, 0.6, 0.8, 1.2, 1.4, 1.6, 1.8],
+			amps = #[0.9, 0.8, 0.7,0.6,0.5,0.5,0.4], gate=1;
+			var source, sig, env, amp;
+			amp = \amp.kr(0.85, 0.05);
+			env = EnvGen.ar(Env.asr(releaseTime:1), gate, doneAction:2);
+			source = In.ar(ibs);
+			sig = MultiTap.ar( delaytimes, amps, source, bufnum:buf );
+			sig  = Pan2.ar( sig, SinOsc.kr(panrate) );
+			Out.ar(obs, sig*env*amp);
+		}).add;
+		SynthDef(\spectralvocoder, {
+			arg ibs, obs=0, freeze = 0, mode = #[0,2,4,5,7,9,11], root=60, pchgrate=3, gate=1;
+			var bufA, bufB, chain1, chain2, out, freq, amp, env;
+			amp = \amp.kr(0.85, 0.05);
+			env = EnvGen.ar(Env.asr(0.01, 1, 0.1),gate, doneAction:2);
+			freq = (TChoose.kr(Impulse.kr(pchgrate), mode)+root).midicps;
+			bufA = LocalBuf.new(2048);
+			bufB = LocalBuf.new(2048);
+			chain1 = FFT(bufA, LFSaw.ar( freq )); // to be filtered
+			chain2 = FFT(bufB, In.ar(ibs)*10);
+			chain1 = PV_SpectralMap(chain1, chain2, 0.0, freeze, 2.4, 1);
+			out = IFFT(chain1);
+			Out.ar(obs, out.dup*env*amp);
 		}).add;
 		////OSCDEFs////
 		OSCdef(\amplify, {
@@ -56,11 +87,42 @@ s.waitForBoot{
 			if(mode==1,
 				{
 					s.sendMsg(\s_new, \amplify, 3000+pl, 0, g2.nodeID, \ibs, scrbus[pl].index, \obs, obs[pl]);
-					//s.sendMsg(\n_map, 3000+pl, \amp, kbus[0].index);
+					s.sendMsg(\n_map, 3000+pl, \amp, kbus[0].index);
 				},
 				{ s.sendMsg(\n_set, 3000+pl, \gate, 0) }
 			);
 		}, "/Amplify");
+		OSCdef(\mtap1, {
+			arg msg;
+			var pl = msg[1].asInteger;
+			var mode = msg[2].asInteger;
+			if(mode==1,
+				{
+					tapdelbuf[pl].free;
+					tapdelbuf[pl] = Buffer.alloc(s, s.sampleRate*4);
+					s.sendMsg(\s_new, \multitap, 4000+pl, 0, g2.nodeID, \ibs, scrbus[pl].index, \obs, obs[pl],
+						\buf, tapdelbuf[pl], \panrate, 3, \delaytimes, [0.4, 0.6, 0.8, 1.2, 1.4, 1.6, 1.8]);
+					s.sendMsg(\n_map, 4000+pl, \amp, kbus[0].index);
+					s.sendMsg(\n_map, 4000+pl, \panrate, kbus[1].index);
+				},
+				{ s.sendMsg(\n_set, 4000+pl, \gate, 0) }
+			);
+		}, "/MultiTap1");
+		OSCdef(\spectralvocoder, {
+			arg msg;
+			var pl = msg[1].asInteger;
+			var mode = msg[2].asInteger;
+			pl.postln;
+			if(mode==1,
+				{
+					s.sendMsg(\s_new, \spectralvocoder, 5000+pl, 0, g2.nodeID, \ibs, scrbus[pl].index, \obs, obs[pl]);
+					s.sendMsg(\n_map, 5000+pl, \amp, kbus[0].index);
+					s.sendMsg(\n_map, 5000+pl, \root, kbus[1].index);
+					s.sendMsg(\n_map, 5000+pl, \pchgrate, kbus[2].index);
+				},
+				{ s.sendMsg(\n_set, 5000+pl, \gate, 0) }
+			);
+		}, "/spectralvocoder");
 		OSCdef( \getix,{
 			ixkbus.get({|val| proc.sendMsg("/ix", val.asFloat)})
 		}, "/getix");
@@ -89,6 +151,11 @@ s.waitForBoot{
 			0.05.wait;
 			s.sendMsg(\n_free, 3000);
 		}, "/stopsamp");
+		OSCdef(\slider, {|msg|
+			var bus = msg[1].asInteger;
+			var val = msg[2].asFloat;
+			kbus[bus].setSynchronous(val);
+		}, "/slider");
 
 		//Waveform Function
 		wff = { |bufnum numpx dest|
@@ -108,12 +175,24 @@ s.waitForBoot{
 				resampArray = resampArray.insert(0, "/sbuf");
 				dest.sendBundle(0.0, resampArray);
 			} );
-		} //end wff function
+		}; //end wff function
+		0.1.wait;
+		s.sendMsg(\s_new, \setbus, 20000, 0, g0.nodeID, \bus, 999);
 	}//end fork
 }//end s.waitForBoot
 )
 n = NetAddr("127.0.0.1", 57120);
 n.sendMsg("/Amplify", 2, 1);
 n.sendMsg("/Amplify", 2, 0);
-a = {Bus.audio(s, 1)}!3;
-a[.index
+n.sendMsg("/MultiTap1", 2, 1);
+n.sendMsg("/MultiTap1", 2, 0);
+n.sendMsg("/spectralvocoder", 2, 1);
+n.sendMsg("/spectralvocoder", 2, 0);
+
+
+
+
+
+
+
+
